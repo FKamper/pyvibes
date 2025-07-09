@@ -1,6 +1,6 @@
-name: veb-ir-interference-removal
+name: veb-ir-env
 dependencies:
-  - python~=3.10.14
+  - python~=3.12.7
   - pip
   - pip:
     - -r requirements.txt
