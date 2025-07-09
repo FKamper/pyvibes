@@ -3,11 +3,11 @@ import cvxpy as cp
 from sklearn.linear_model import LinearRegression
 
 
-def ebs_als(y, V, tau=0.1, maxit=100, verbose=False):
+def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
     reg_mod = LinearRegression(fit_intercept=False)
     w = np.repeat(tau, y.shape[0])
 
-    for i in range(maxit):
+    for i in range(mit):
         reg_mod.fit(V, y, sample_weight=w)
         z = reg_mod.predict(V)
         wold = w
@@ -29,3 +29,22 @@ def ebs_pb(y, V, tau=0.1, verbose=False):
 
     prob.solve(solver=cp.CLARABEL, verbose=verbose)
     return V @ x.value, x.value
+
+
+class Ebs:
+    def __init__(self, tau=0.1, loss="PB", mit=100):
+        self.mit = mit
+        self.tau = tau
+
+        def fit(self, y, mu, W):
+            if loss == "ALS":
+                z, x = ebs_als(y - mu, W, tau=self.tau, mit=self.mit, verbose=False)
+                self.x = x
+                self.z = mu + z
+                self.a = y - z
+
+            if loss == "PB":
+                z, x = ebs_pb(y - mu, W, tau=self.tau, verbose=False)
+                self.x = x
+                self.z = mu + z
+                self.a = y - z
