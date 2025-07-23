@@ -31,10 +31,10 @@ def ebs_pb(y, V, tau=0.1, verbose=False):
     return V @ x.value, x.value
 
 
-class Ebs:
+class EbSpectrum:
     def __init__(self, tau=0.1, loss="PB", mit=100):
-        self.mit = mit
         self.tau = tau
+        self.mit = mit
 
         def fit(self, y, mu, W):
             if loss == "ALS":

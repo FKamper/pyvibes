@@ -211,7 +211,7 @@ def pb_map(y, mu, W, tau, sigma, warm_start=None, verbose=False):
     return mu + W @ beta.value, beta.value
 
 
-class veb_ebs:
+class VeBayes:
     def __init__(
         self,
         y,
