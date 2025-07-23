@@ -46,7 +46,10 @@ def loo_pca(Z, max_ncomp=53, detrend=True):
     m = np.mean(Err, axis=0)
     se = np.std(Err, axis=0) / np.sqrt(Err.shape[0])
 
-    return 1 + np.argmin(m), 1 + np.min(np.where(m - se <= np.min(m))[0]), Err
+    chat_min = 1 + np.argmin(m)
+    chat_ose = 1 + np.min(np.where(m - se <= np.min(m))[0])
+
+    return chat_min, chat_ose, Err
 
 
 def malinowski_ind(Z):

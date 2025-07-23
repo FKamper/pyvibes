@@ -31,20 +31,23 @@ def ebs_pb(y, V, tau=0.1, verbose=False):
     return V @ x.value, x.value
 
 
-class EbSpectrum:
+class EBS:
+    """Eliminate Background Spectrum."""
+
     def __init__(self, tau=0.1, loss="PB", mit=100):
         self.tau = tau
         self.mit = mit
+        self.loss = loss
 
-        def fit(self, y, mu, W):
-            if loss == "ALS":
-                z, x = ebs_als(y - mu, W, tau=self.tau, mit=self.mit, verbose=False)
-                self.x = x
-                self.z = mu + z
-                self.a = y - z
+    def fit(self, y, mu, W):
+        if self.loss == "ALS":
+            z, x = ebs_als(y - mu, W, tau=self.tau, mit=self.mit, verbose=False)
+            self.x = x
+            self.interference = mu + z
+            self.absorbance = y - self.interference
 
-            if loss == "PB":
-                z, x = ebs_pb(y - mu, W, tau=self.tau, verbose=False)
-                self.x = x
-                self.z = mu + z
-                self.a = y - z
+        if self.loss == "PB":
+            z, x = ebs_pb(y - mu, W, tau=self.tau, verbose=False)
+            self.x = x
+            self.interference = mu + z
+            self.absorbance = y - self.interference
