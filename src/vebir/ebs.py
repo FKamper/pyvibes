@@ -4,6 +4,22 @@ from sklearn.linear_model import LinearRegression
 
 
 def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
+    """
+    Reconstructs the interference present in a spectra.
+    Given a spectra `y` and a (scaled) right singular vector matrix `V`, this function finds the coefficient vector `x`
+    that minimizes the asymmetrically weighted least squares (ALS) loss function charaterized by `tau`. The optimization
+    is performed iteratively until convergence or until the maximum number of iterations is reached.
+    Args:
+        y (np.ndarray): Observation vector of shape (n_wavenumbers,).
+        V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
+        tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
+        verbose (bool, optional): If True, prints solver output. Default is False.
+    Returns:
+        tuple:
+            - np.ndarray: The reconstructed interference.
+            - np.ndarray: The latent loadings `x`, shape (n_wavenumbers,).
+    """
+
     reg_mod = LinearRegression(fit_intercept=False)
     w = np.repeat(tau, y.shape[0])
 
@@ -22,6 +38,21 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
 
 
 def ebs_pb(y, V, tau=0.1, verbose=False):
+    """
+    Reconstructs the interference present in a spectra.
+    Given a spectra `y` and a (scaled) right singular vector matrix `V`, this function finds the coefficient vector `x`
+    that minimizes the pinball loss function charaterized by `tau`. The optimization
+    is performed using convex optimization with the CLARABEL solver.
+    Args:
+        y (np.ndarray): Observation vector of shape (n_wavenumbers,).
+        V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
+        tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
+        verbose (bool, optional): If True, prints solver output. Default is False.
+    Returns:
+        tuple:
+            - np.ndarray: The reconstructed interference.
+            - np.ndarray: The latent loadings `x`, shape (n_wavenumbers,).
+    """
     x = cp.Variable(V.shape[1])
     prob = cp.Problem(
         cp.Minimize(cp.sum(0.5 * cp.abs(y - V @ x) + (tau - 0.5) * (y - V @ x)))
