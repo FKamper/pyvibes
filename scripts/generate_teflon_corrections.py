@@ -80,3 +80,63 @@ except FileNotFoundError:
 
     with open(CORRECTIONS_DIR / "ebs_als_dict_W.pkl", "wb") as f:
         pickle.dump(ebs_als_dict, f)
+
+print("\n===== EBS-PB: no centering + V parameterization =====\n")
+
+try:
+    with open(CORRECTIONS_DIR / "ebs_pb_dict_V.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, V, _ = pca(Z, detrend=False)
+    mod = EBS(loss="PB")
+
+    ebs_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        corrections_dict = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for j in tqdm(range(grid.shape[0]), desc=comp):
+            corrections = np.zeros([Y.shape[0], Y.shape[1]])
+            for i in range(corrections.shape[0]):
+                mod.tau = grid[j, 1]
+                mod.fit(Y[i, :], mu, V[:, : int(grid[j, 0])])
+                corrections[i, :] = mod.absorbance
+            corrections_dict[f"ncomp,tau = {int(grid[j, 0])},{grid[j, 1]}"] = (
+                corrections
+            )
+        ebs_pb_dict[comp] = corrections_dict
+
+    with open(CORRECTIONS_DIR / "ebs_pb_dict_V.pkl", "wb") as f:
+        pickle.dump(ebs_pb_dict, f)
+
+print("\n===== EBS-PB: centering + W parameterization =====\n")
+
+try:
+    with open(CORRECTIONS_DIR / "ebs_pb_dict_W.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, _, W = pca(Z, detrend=True)
+    mod = EBS(loss="PB")
+
+    ebs_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        corrections_dict = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for j in tqdm(range(grid.shape[0]), desc=comp):
+            corrections = np.zeros([Y.shape[0], Y.shape[1]])
+            for i in range(corrections.shape[0]):
+                mod.tau = grid[j, 1]
+                mod.fit(Y[i, :], mu, W[:, : int(grid[j, 0])])
+                corrections[i, :] = mod.absorbance
+            corrections_dict[f"ncomp,tau = {int(grid[j, 0])},{grid[j, 1]}"] = (
+                corrections
+            )
+        ebs_pb_dict[comp] = corrections_dict
+
+    with open(CORRECTIONS_DIR / "ebs_pb_dict_W.pkl", "wb") as f:
+        pickle.dump(ebs_pb_dict, f)
