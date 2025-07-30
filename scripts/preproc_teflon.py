@@ -9,6 +9,7 @@ RAW_DIR = REPO_ROOT / "data" / "raw" / "teflon"
 BLANKS_DIR = RAW_DIR / "blank_filters"
 LAB_DIR = RAW_DIR / "laboratory_samples"
 PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
+REF_SPECTRA_DIR = REPO_ROOT / "data" / "spectrabase" / "teflon"
 
 resp = pd.read_csv(LAB_DIR / "Ruthenburg_FG_std_arealdensity.csv", skiprows=4)
 wn = np.sort(pd.read_csv(LAB_DIR / "zerofilling.txt", header=None).iloc[:, 0])
@@ -156,4 +157,67 @@ for k in range(len(lots)):
 with open(PREPROC_DIR / "blanks_dict.pkl", "wb") as f:
     pickle.dump(blanks_dict, f)
 
-print("Teflon Preprocessing Done")
+print("\n===== Preprocessing Reference Spectra =====\n")
+
+max_wavenumber = 4000
+
+ref_dict = {}
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "CO2_spectrum.csv", header=0))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["CO2"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "12-tricosanone.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["12-Tricosanone"] = spc
+
+spc = np.array(
+    pd.read_csv(REF_SPECTRA_DIR / "ammsulf_Earle2006.csv", header=0, skiprows=4).iloc[
+        :, :2
+    ]
+)
+
+ind = np.where(spc[:, 0] < max_wavenumber)[0]
+spc = spc[ind, :]
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["Ammonium sulfate"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "malonic-acid.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["Malonic Acid"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "suberic-acid.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["Suberic Acid"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "alpha-D-glucose.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["D-Glucose"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "D-fructose.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["fructose"] = spc
+
+spc = np.array(pd.read_csv(REF_SPECTRA_DIR / "levoglucosan.csv", header=None))
+ord = np.argsort(spc[:, 0])
+spc[:, 0] = spc[ord, 0]
+spc[:, 1] = spc[ord, 1] / np.max(spc[:, 1])
+ref_dict["levoglucosan"] = spc
+
+with open(REF_SPECTRA_DIR / "ref_dict.pkl", "wb") as f:
+    pickle.dump(ref_dict, f)
+
+print("\n===== Teflon Preprocessing Done  =====\n")

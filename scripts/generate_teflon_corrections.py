@@ -26,6 +26,7 @@ print("\n===== EBS-ALS: no centering + V parameterization =====\n")
 try:
     with open(CORRECTIONS_DIR / "ebs_als_dict_V.pkl", "rb") as f:
         pickle.load(f)
+        print("Corrections already exist.")
 
 except FileNotFoundError:
     mu, _, V, _ = pca(Z, detrend=False)
@@ -55,6 +56,7 @@ print("\n===== EBS-ALS: centering + W parameterization =====\n")
 try:
     with open(CORRECTIONS_DIR / "ebs_als_dict_W.pkl", "rb") as f:
         pickle.load(f)
+        print("Corrections already exist.")
 
 except FileNotFoundError:
     mu, _, _, W = pca(Z, detrend=True)
