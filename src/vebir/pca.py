@@ -100,9 +100,25 @@ def loo_pca(Z, max_ncomp=53, detrend=True):
 
 def malinowski_ind(Z):
     """
-    Computes the IND function exactly as per Equation (6) in
-    Malinowski, Anal. Chem. 49 (1977) 612.
+    Calculates the Malinowski's Indicator Function (IND) for a given data matrix.
+    This function implements Equation (6) from Malinowski, Anal. Chem. 49 (1977) 612,
+    to estimate the optimal number of principal components in a dataset using the IND criterion.
+    Parameters
+    ----------
+    Z : np.ndarray
+        The input data matrix of shape (n_samples, n_wavenumbers).
+    Returns
+    -------
+    optimal_components : int
+        The estimated optimal number of principal components (1-based index).
+    ind_values : np.ndarray
+        Array of IND values for each possible number of components (length min(n, m) - 1).
+    References
+    ----------
+    Malinowski, E. R. (1977). Determination of the number of factors and the experimental error in a data matrix.
+    Analytical Chemistry, 49(4), 612-617.
     """
+
     n, m = Z.shape
     k_max = min(n, m)
 
