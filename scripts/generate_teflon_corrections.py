@@ -2,8 +2,9 @@ import pickle
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
-from vebir.pca import pca
+from vebir.pca import pca, loo_pca
 from vebir.ebs import EBS
+from vebir.veb import VEB
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
@@ -140,3 +141,54 @@ except FileNotFoundError:
 
     with open(CORRECTIONS_DIR / "ebs_pb_dict_W.pkl", "wb") as f:
         pickle.dump(ebs_pb_dict, f)
+
+print("\n===== VEB-ALS =====\n")
+chat_cv = loo_pca(Z)[1]
+try:
+    with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, _, W = pca(Z, detrend=True)
+    W = W[:, :chat_cv]
+    mod = VEB(c=W.shape[1], loss="ALS")
+
+    veb_als_dict = {}
+
+    for comp in raw_spectra_dict:
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        corrections = np.zeros([Y.shape[0], Y.shape[1]])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            mod.fit(Y[i, :], mu, W)
+            mod.map(Y[i, :], mu, W)
+            corrections[i, :] = mod.absorbance
+        veb_als_dict[comp] = corrections
+
+    with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "wb") as f:
+        pickle.dump(veb_als_dict, f)
+
+print("\n===== VEB-PB =====\n")
+try:
+    with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, _, W = pca(Z, detrend=True)
+    W = W[:, :chat_cv]
+    mod = VEB(c=W.shape[1], loss="PB")
+
+    veb_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        corrections = np.zeros([Y.shape[0], Y.shape[1]])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            mod.fit(Y[i, :], mu, W)
+            mod.map(Y[i, :], mu, W)
+            corrections[i, :] = mod.absorbance
+        veb_pb_dict[comp] = corrections
+
+    with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "wb") as f:
+        pickle.dump(veb_pb_dict, f)
