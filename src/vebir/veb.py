@@ -6,14 +6,43 @@ from sklearn.linear_model import Ridge
 
 
 def norm_cdf(z):
+    """
+    Calculates the cumulative distribution function (CDF) of the standard normal distribution for a given value.
+
+    Parameters
+    ----------
+    z : float or array-like
+        The value(s) at which to evaluate the standard normal CDF.
+
+    Returns
+    -------
+    float or ndarray
+        The CDF value(s) corresponding to the input z.
+
+    Notes
+    -----
+    This function uses the error function `erf` for computation.
+    """
     return 0.5 * (1 + erf(z / np.sqrt(2)))
 
 
 def norm_pdf(z):
+    """
+    Compute the value of the standard normal probability density function (PDF) at a given point.
+
+    Parameters
+    ----------
+    z : float or array-like
+        The point(s) at which to evaluate the standard normal PDF.
+
+    Returns
+    -------
+    float or ndarray
+        The value(s) of the standard normal PDF at the specified point(s).
+    """
     return np.exp(-0.5 * z**2) / np.sqrt(2 * np.pi)
 
 
-# VEB-EBS-ALS
 def veb_ebs_als_elbo(y, tau, nu, d, mu, W):
     p, c = y.shape[0], W.shape[1]
 
@@ -39,7 +68,7 @@ def veb_ebs_als_elbo(y, tau, nu, d, mu, W):
 
 
 def veb_ebs_als_jac_elbo(y, tau, nu, d, mu, W):
-    p, c = y.shape[0], W.shape[1]
+    p = y.shape[0]
 
     theta = y - mu - W @ nu
     delta = np.sqrt(np.sum((W * d) ** 2, axis=1))
@@ -120,7 +149,6 @@ def als_map(y, mu, W, tau, sigma, maxit=100, warm_start=None, verbose=False):
     return z, reg_mod.coef_
 
 
-# VEB-EBS-PB
 def veb_ebs_pb_elbo(y, tau, nu, d, mu, W):
     p, c = y.shape[0], W.shape[1]
 
@@ -143,7 +171,7 @@ def veb_ebs_pb_elbo(y, tau, nu, d, mu, W):
 
 
 def veb_ebs_pb_jac_elbo(y, tau, nu, d, mu, W):
-    p, c = y.shape[0], W.shape[1]
+    p = y.shape[0]
 
     theta = y - mu - W @ nu
     delta = np.sqrt(np.sum((W * d) ** 2, axis=1))
@@ -211,12 +239,10 @@ def pb_map(y, mu, W, tau, sigma, warm_start=None, verbose=False):
     return mu + W @ beta.value, beta.value
 
 
-class VeBayes:
+class VEB:
     def __init__(
         self,
-        y,
-        mu,
-        W,
+        c,
         tau_init=None,
         nu_init=None,
         d_init=None,
@@ -224,11 +250,8 @@ class VeBayes:
         mit=10000,
         tau_up=0.25,
     ):
-        self.y = np.array(y)
-        self.c = W.shape[1]
         self.loss = loss
-        self.mu = mu
-        self.W = W
+        self.c = c
 
         if tau_init is None:
             self.tau_init = 0.1
@@ -255,9 +278,9 @@ class VeBayes:
             self.comp_sigma_hat = pb_sigma_hat
             self.comp_map = pb_map
 
-    def fit(self, mit=10000, tau_up=0.25):
+    def fit(self, y, mu, W, mit=10000, tau_max=0.25):
         fun, jac_fun, init, bnds = self.optim_prep(
-            self.y, self.tau_init, self.nu_init, self.d_init, self.mu, self.W, tau_up
+            y, self.tau_init, self.nu_init, self.d_init, mu, W, tau_max
         )
         opt = minimize(
             fun,
@@ -271,18 +294,16 @@ class VeBayes:
         self.tau, self.nu, t0 = opt.x[0], opt.x[1 : (1 + self.c)], self.c + 1
         self.d = opt.x[t0:]
 
-        self.sigma_hat = self.comp_sigma_hat(
-            self.y, self.tau, self.nu, self.d, self.mu, self.W
-        )
+        self.sigma_hat = self.comp_sigma_hat(y, self.tau, self.nu, self.d, mu, W)
 
-    def map(self):
-        self.z, self.x = self.comp_map(
-            self.y,
-            self.mu,
-            self.W,
+    def map(self, y, mu, W):
+        self.interference, self.x = self.comp_map(
+            y,
+            mu,
+            W,
             self.tau,
             self.sigma_hat,
             warm_start=self.nu,
             verbose=False,
         )
-        self.a = self.y - self.z
+        self.absorbance = y - self.interference
