@@ -1,5 +1,6 @@
 import numpy as np
 import cvxpy as cp
+from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
 
 
@@ -13,6 +14,7 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
         y (np.ndarray): Observation vector of shape (n_wavenumbers,).
         V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
         tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
+        mit (int, optional): Maximum number of iterations. Default is 100.
         verbose (bool, optional): If True, prints solver output. Default is False.
     Returns:
         tuple:
@@ -23,7 +25,10 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
     reg_mod = LinearRegression(fit_intercept=False)
     w = np.repeat(tau, y.shape[0])
 
-    for i in range(mit):
+    iterator = range(mit)
+    iterator = tqdm(iterator) if verbose else iterator
+
+    for i in iterator:
         reg_mod.fit(V, y, sample_weight=w)
         z = reg_mod.predict(V)
         wold = w
@@ -31,13 +36,11 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
         w[y - z < 0] = 1 - tau
         if np.all(wold == w):
             break
-        if verbose:
-            print(i, end=" \r")
 
     return z, reg_mod.coef_
 
 
-def ebs_pb(y, V, tau=0.1, verbose=False):
+def ebs_pb(y, V, tau=0.1, mit=None, verbose=False):
     """
     Reconstructs the interference present in a spectrum.
     Given a spectrum `y` and a (scaled) right singular vector matrix `V`, this function finds the coefficient vector `x`
@@ -47,6 +50,7 @@ def ebs_pb(y, V, tau=0.1, verbose=False):
         y (np.ndarray): Observation vector of shape (n_wavenumbers,).
         V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
         tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
+        mit (int, optional): Not used.
         verbose (bool, optional): If True, prints solver output. Default is False.
     Returns:
         tuple:
@@ -101,7 +105,7 @@ class EBS:
         mu : ndarray
             Mean interference spectrum. Set to zero if centering is not applied.
         W : ndarray
-            Scaled right singular vector matrix W = VD obtained from a SVD X - mu = UDV' of the interference examples. Take W = V if no scaling is applied.
+            Scaled right singular vector matrix W = VD obtained from a SVD Z - mu = UDV' of the interference examples. Take W = V if no scaling is applied.
         Updates
         -------
         self.x : ndarray
@@ -112,20 +116,23 @@ class EBS:
             Estimated absorbance spectrum.
     """
 
-    def __init__(self, tau=0.1, loss="PB", mit=100):
+    def __init__(self, tau=0.1, loss="PB"):
         self.tau = tau
-        self.mit = mit
         self.loss = loss
 
-    def fit(self, y, mu, W):
-        if self.loss == "ALS":
-            z, x = ebs_als(y - mu, W, tau=self.tau, mit=self.mit, verbose=False)
-            self.x = x
-            self.interference = mu + z
-            self.absorbance = y - self.interference
-
         if self.loss == "PB":
-            z, x = ebs_pb(y - mu, W, tau=self.tau, verbose=False)
-            self.x = x
-            self.interference = mu + z
-            self.absorbance = y - self.interference
+            self.comp_map = ebs_pb
+
+        if self.loss == "ALS":
+            self.comp_map = ebs_als
+
+    def fit(self, y, mu, W, mit=100):
+        self.interference, self.x = self.comp_map(
+            y - mu,
+            W,
+            self.tau,
+            mit,
+            verbose=False,
+        )
+        self.interference = mu + self.interference
+        self.absorbance = y - self.interference

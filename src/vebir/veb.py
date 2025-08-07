@@ -1,8 +1,9 @@
 import numpy as np
-from scipy.special import erf
 import cvxpy as cp
+from scipy.special import erf
 from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
+from tqdm import tqdm
 
 
 def norm_cdf(z):
@@ -43,7 +44,32 @@ def norm_pdf(z):
     return np.exp(-0.5 * z**2) / np.sqrt(2 * np.pi)
 
 
-def veb_ebs_als_elbo(y, tau, nu, d, mu, W):
+def veb_als_elbo(y, tau, nu, d, mu, W):
+    """
+    Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
+    iid standard normal random variables and r of iid random variables distributed according the the Gibbs distribution
+    associated with the asymmetrically weighted least squares loss. The variational approximation for x|y consists of
+    independent, but not identical, normal random variables.
+    Parameters
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors obtained from a SVD of the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    float
+        The computed ELBO value.
+    """
     p, c = y.shape[0], W.shape[1]
 
     theta = y - mu - W @ nu
@@ -67,7 +93,33 @@ def veb_ebs_als_elbo(y, tau, nu, d, mu, W):
     )
 
 
-def veb_ebs_als_jac_elbo(y, tau, nu, d, mu, W):
+def veb_als_jac_elbo(y, tau, nu, d, mu, W):
+    """
+    Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-ALS model.
+    Parameters
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors from the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    dtau : float
+        Gradient of the ELBO with respect to tau.
+    dnu : np.ndarray
+        Gradient of the ELBO with respect to nu, shape (c,).
+    dd : np.ndarray
+        Gradient of the ELBO with respect to d, shape (c,).
+    """
     p = y.shape[0]
 
     theta = y - mu - W @ nu
@@ -98,27 +150,70 @@ def veb_ebs_als_jac_elbo(y, tau, nu, d, mu, W):
     return dtau, dnu, dd
 
 
-def veb_ebs_als_optim_prep(y, tau_init, nu_init, d_init, mu, W, tau_up=0.25):
+def veb_als_optim_prep(
+    y, tau_init, nu_init, d_init, mu, W, tau_min=1e-5, tau_max=0.25, sd_min=1e-10
+):
+    """
+    Prepares the objective function, its Jacobian, initial parameters, and bounds for optimization
+    of the VEB-ALS model.
+    Args:
+        y (np.ndarray): Observed spectrum of shape (p,).
+        tau_init (float): Initial value for the tau parameter.
+        nu_init (np.ndarray): Initial values for the means of the variational approximation of shape (c,).
+        d_init (np.ndarray): Initial values for the standard deviations of the variational approximation of shape (c,).
+        mu (np.ndarray): Mean interference spectrum of shape (p,).
+        W (np.ndarray): First c scaled right singular vectors from the centered intereference examples of shape (p, c).
+        tau_min (float, optional): Minimum bound for tau. Default is 1e-5.
+        tau_max (float, optional): Maximum bound for tau. Default is 0.25.
+        sd_min (float, optional): Minimum bound for d parameters. Default is 1e-10.
+    Returns:
+        fun (callable): Objective function to be minimized (negative ELBO).
+        jac_fun (callable): Jacobian of the objective function.
+        init (np.ndarray): Initial parameter vector for optimization.
+        bnds (tuple): Bounds for each parameter in the optimization.
+    """
     c = nu_init.shape[0]
     nu_slice = slice(1, 1 + c)
     d_slice = slice(1 + c, None)
 
     def fun(pars):
-        return -veb_ebs_als_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
+        return -veb_als_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
 
     def jac_fun(pars):
-        dtau, dnu, dd = veb_ebs_als_jac_elbo(
+        dtau, dnu, dd = veb_als_jac_elbo(
             y, pars[0], pars[nu_slice], pars[d_slice], mu, W
         )
         return -np.concatenate(([dtau], dnu, dd))
 
     init = np.concatenate(([tau_init], nu_init, d_init))
-    bnds = ((0.00001, tau_up),) + ((-np.inf, np.inf),) * c + ((1e-10, np.inf),) * c
+    bnds = ((tau_min, tau_max),) + ((-np.inf, np.inf),) * c + ((sd_min, np.inf),) * c
 
     return fun, jac_fun, init, bnds
 
 
 def als_sigma_hat(y, tau, nu, d, mu, W):
+    """
+    Computes the estinmated scaling parameter (sigma_hat) of the Gibbs distribution
+    associated with asymmetrically weighted least squares loss.
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors from the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    sigma_hat : float
+        Computed sigma_hat value.
+    """
     theta = y - mu - W @ nu
     delta = np.sqrt(np.sum((W * d) ** 2, axis=1))
     z = theta / delta
@@ -131,11 +226,30 @@ def als_sigma_hat(y, tau, nu, d, mu, W):
     return sigma_hat
 
 
-def als_map(y, mu, W, tau, sigma, maxit=100, warm_start=None, verbose=False):
+def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
+    """
+    Computes the MAP assingment under the VEB-ALS model.
+    Args:
+        y (np.ndarray): Observed spectrum of shape (p,).
+        mu (np.ndarray): Mean interference spectrum of shape (p,).
+        W (np.ndarray): First c scaled right singular vectors from the centered intereference examples of shape (p, c).
+        tau (float): Asymmetric loss parameter in (0, 1).
+        sigma (float): Scaling parameter of the Gibbs distribution
+        mit (int, optional): Maximum number of iterations. Default is 100.
+        verbose (bool, optional): If True, displays progress bar and iteration info. Default is False.
+    Returns:
+        tuple:
+            - z (np.ndarray): MAP interference.
+            - coef_ (np.ndarray): MAP latent coefficients.
+    """
     reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2)
+
     w = np.repeat(tau, y.shape[0])
 
-    for i in range(maxit):
+    iterator = range(mit)
+    iterator = tqdm(iterator) if verbose else iterator
+
+    for i in iterator:
         reg_mod.fit(W, y - mu, sample_weight=w)
         z = mu + reg_mod.predict(W)
         wold = w
@@ -149,7 +263,32 @@ def als_map(y, mu, W, tau, sigma, maxit=100, warm_start=None, verbose=False):
     return z, reg_mod.coef_
 
 
-def veb_ebs_pb_elbo(y, tau, nu, d, mu, W):
+def veb_pb_elbo(y, tau, nu, d, mu, W):
+    """
+    Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
+    iid standard normal random variables and r of iid random variables distributed according the the Gibbs distribution
+    associated with the pinball loss. The variational approximation for x|y consists of independent, but not identical,
+    normal random variables.
+    Parameters
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors obtained from a SVD of the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    float
+        The computed ELBO value.
+    """
     p, c = y.shape[0], W.shape[1]
 
     theta = y - mu - W @ nu
@@ -170,7 +309,33 @@ def veb_ebs_pb_elbo(y, tau, nu, d, mu, W):
     )
 
 
-def veb_ebs_pb_jac_elbo(y, tau, nu, d, mu, W):
+def veb_pb_jac_elbo(y, tau, nu, d, mu, W):
+    """
+    Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-PB model.
+    Parameters
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors from the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    dtau : float
+        Gradient of the ELBO with respect to tau.
+    dnu : np.ndarray
+        Gradient of the ELBO with respect to nu, shape (c,).
+    dd : np.ndarray
+        Gradient of the ELBO with respect to d, shape (c,).
+    """
     p = y.shape[0]
 
     theta = y - mu - W @ nu
@@ -189,27 +354,70 @@ def veb_ebs_pb_jac_elbo(y, tau, nu, d, mu, W):
     return dtau, dnu, dd
 
 
-def veb_ebs_pb_optim_prep(y, tau_init, nu_init, d_init, mu, W, tau_up=0.25):
+def veb_pb_optim_prep(
+    y, tau_init, nu_init, d_init, mu, W, tau_min=1e-5, tau_max=0.25, sd_min=1e-10
+):
+    """
+    Prepares the objective function, its Jacobian, initial parameters, and bounds for optimization
+    of the VEB-PB model.
+    Args:
+        y (np.ndarray): Observed spectrum of shape (p,).
+        tau_init (float): Initial value for the tau parameter.
+        nu_init (np.ndarray): Initial values for the means of the variational approximation of shape (c,).
+        d_init (np.ndarray): Initial values for the standard deviations of the variational approximation of shape (c,).
+        mu (np.ndarray): Mean interference spectrum of shape (p,).
+        W (np.ndarray): First c scaled right singular vectors from the centered intereference examples of shape (p, c).
+        tau_min (float, optional): Minimum bound for tau. Default is 1e-5.
+        tau_max (float, optional): Maximum bound for tau. Default is 0.25.
+        sd_min (float, optional): Minimum bound for d parameters. Default is 1e-10.
+    Returns:
+        fun (callable): Objective function to be minimized (negative ELBO).
+        jac_fun (callable): Jacobian of the objective function.
+        init (np.ndarray): Initial parameter vector for optimization.
+        bnds (tuple): Bounds for each parameter in the optimization.
+    """
     c = nu_init.shape[0]
     nu_slice = slice(1, 1 + c)
     d_slice = slice(1 + c, None)
 
     def fun(pars):
-        return -veb_ebs_pb_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
+        return -veb_pb_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
 
     def jac_fun(pars):
-        dtau, dnu, dd = veb_ebs_pb_jac_elbo(
+        dtau, dnu, dd = veb_pb_jac_elbo(
             y, pars[0], pars[nu_slice], pars[d_slice], mu, W
         )
         return -np.concatenate(([dtau], dnu, dd))
 
     init = np.concatenate(([tau_init], nu_init, d_init))
-    bnds = ((0.00001, tau_up),) + ((-np.inf, np.inf),) * c + ((1e-10, np.inf),) * c
+    bnds = ((tau_min, tau_max),) + ((-np.inf, np.inf),) * c + ((sd_min, np.inf),) * c
 
     return fun, jac_fun, init, bnds
 
 
 def pb_sigma_hat(y, tau, nu, d, mu, W):
+    """
+    Computes the estinmated scaling parameter (sigma_hat) of the Gibbs distribution
+    associated with pinball loss.
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    nu : np.ndarray
+        Means of the components of the variational approximation of shape (c,).
+    d : np.ndarray
+        Standard deviation of the components of the variational approximation of shape (c,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+       First c scaled right singular vectors from the centered intereference examples
+       of shape (p, c).
+    Returns
+    -------
+    sigma_hat : float
+        Computed sigma_hat value.
+    """
     theta = y - mu - W @ nu
     delta = np.sqrt(np.sum((W * d) ** 2, axis=1))
     z = theta / delta
@@ -222,24 +430,74 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
     return sigma_hat
 
 
-def pb_map(y, mu, W, tau, sigma, warm_start=None, verbose=False):
-    beta = cp.Variable(W.shape[1])
+def pb_map(y, mu, W, tau, sigma, mit=None, verbose=False):
+    """
+    Computes the MAP assingment under the VEB-PB model.
+    Args:
+        y (np.ndarray): Observed spectrum of shape (p,).
+        mu (np.ndarray):  Mean interference spectrum of shape (p,).
+        W (np.ndarray): First c scaled right singular vectors from the centered intereference examples of shape (p, c).
+        tau (float): Asymmetric loss parameter in (0, 1).
+        sigma (float): Scaling parameter of the Gibbs distribution
+        mit (int, optional): Not used.
+        verbose (bool, optional): If True, displays progress bar and iteration info. Default is False.
+    Returns:
+        tuple:
+            - z (np.ndarray): MAP interference.
+            - coef_ (np.ndarray): MAP latent coefficients.
+    """
+    x = cp.Variable(W.shape[1])
     prob = cp.Problem(
         cp.Minimize(
-            cp.sum(0.5 * cp.abs(y - mu - W @ beta) + (tau - 0.5) * (y - mu - W @ beta))
-            + 0.5 * sigma * cp.sum_squares(beta)
+            cp.sum(0.5 * cp.abs(y - mu - W @ x) + (tau - 0.5) * (y - mu - W @ x))
+            + 0.5 * sigma * cp.sum_squares(x)
         )
     )
 
-    if warm_start is None:
-        prob.solve(solver=cp.CLARABEL, verbose=verbose)
-    else:
-        prob.solve(solver=cp.CLARABEL, verbose=verbose, warm_start=warm_start)
+    prob.solve(solver=cp.CLARABEL, verbose=verbose)
 
-    return mu + W @ beta.value, beta.value
+    return mu + W @ x.value, x.value
 
 
 class VEB:
+    """
+    Variational Empirical Bayes (VEB) model for interference removal.
+    Parameters
+    ----------
+    c : int
+        Number of components used to model the intereference/
+    tau_init : float, optional
+        Initial value for tau parameter. Defaults to 0.1.
+    nu_init : array-like, optional
+        Initial values for nu parameter. Defaults to zeros of length `c`.
+    d_init : array-like, optional
+        Initial values for d parameter. Defaults to ones of length `c`.
+    loss : str, optional
+        Loss function to use. Options are "PB" (default) or "ALS".
+    Attributes
+    ----------
+    tau : float
+        Estimated asymmetric loss parameter.
+    nu : array-like
+        Estimated means of the variational approximation.
+    d : array-like
+        Estimated standard deviations of the variational approximation.
+    sigma_hat : array-like
+        Estimated scaling value of the Gibbs distribution.
+    interference : array-like
+        MAP interference.
+    x : array-like
+        MAP latent coefficients.
+    absorbance : array-like
+        MAP absorbance after interference removal.
+    Methods
+    -------
+    fit(y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10)
+        Fit the VEB model to the data.
+    map(y, mu, W, mit)
+        Compute the interference and absorbance using the fitted model.
+    """
+
     def __init__(
         self,
         c,
@@ -247,8 +505,6 @@ class VEB:
         nu_init=None,
         d_init=None,
         loss="PB",
-        mit=10000,
-        tau_up=0.25,
     ):
         self.loss = loss
         self.c = c
@@ -269,18 +525,18 @@ class VEB:
             self.d_init = d_init
 
         if loss == "ALS":
-            self.optim_prep = veb_ebs_als_optim_prep
+            self.optim_prep = veb_als_optim_prep
             self.comp_sigma_hat = als_sigma_hat
             self.comp_map = als_map
 
         if loss == "PB":
-            self.optim_prep = veb_ebs_pb_optim_prep
+            self.optim_prep = veb_pb_optim_prep
             self.comp_sigma_hat = pb_sigma_hat
             self.comp_map = pb_map
 
-    def fit(self, y, mu, W, mit=10000, tau_max=0.25):
+    def fit(self, y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10):
         fun, jac_fun, init, bnds = self.optim_prep(
-            y, self.tau_init, self.nu_init, self.d_init, mu, W, tau_max
+            y, self.tau_init, self.nu_init, self.d_init, mu, W, tau_min, tau_max, sd_min
         )
         opt = minimize(
             fun,
@@ -296,14 +552,14 @@ class VEB:
 
         self.sigma_hat = self.comp_sigma_hat(y, self.tau, self.nu, self.d, mu, W)
 
-    def map(self, y, mu, W):
+    def map(self, y, mu, W, mit=100):
         self.interference, self.x = self.comp_map(
             y,
             mu,
             W,
             self.tau,
             self.sigma_hat,
-            warm_start=self.nu,
+            mit,
             verbose=False,
         )
         self.absorbance = y - self.interference

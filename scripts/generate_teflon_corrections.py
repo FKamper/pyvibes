@@ -144,16 +144,16 @@ except FileNotFoundError:
 
 print("\n===== VEB-ALS =====\n")
 chat_cv = loo_pca(Z)[1]
+mu, _, _, W = pca(Z, detrend=True)
+W = W[:, :chat_cv]
+
 try:
     with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "rb") as f:
         pickle.load(f)
         print("Corrections already exist.")
 
 except FileNotFoundError:
-    mu, _, _, W = pca(Z, detrend=True)
-    W = W[:, :chat_cv]
     mod = VEB(c=W.shape[1], loss="ALS")
-
     veb_als_dict = {}
 
     for comp in raw_spectra_dict:
@@ -175,10 +175,7 @@ try:
         print("Corrections already exist.")
 
 except FileNotFoundError:
-    mu, _, _, W = pca(Z, detrend=True)
-    W = W[:, :chat_cv]
     mod = VEB(c=W.shape[1], loss="PB")
-
     veb_pb_dict = {}
 
     for comp in raw_spectra_dict:
