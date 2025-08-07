@@ -8,6 +8,8 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
     """
     Estimates the interference present in a spectra using the EBS method under asymmetrically weighted least squares loss.
     The optimization is performed iteratively until convergence or until the maximum number of iterations is reached.
+
+    Args
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
@@ -17,14 +19,15 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
         Asymmetric loss parameter in (0, 1).
     mit: int
         Maximum allowable number of iterations
+
     Returns
-    -------
+    ----------
     sigma_hat :
         tuple:
             - np.ndarray: The estimated interference.
             - np.ndarray: The latent loadings.
     Notes
-    -------
+    ----------
     Optionally, one can use the right singular vectors after centering the interferenece examples. In this case
     pass y - mu, mu the mean interference spectrum, instead of y and add mu to the interference afterward. One
     could also scale the right singular vectors by their corresponding singulat values.
@@ -52,6 +55,8 @@ def ebs_pb(y, V, tau=0.1, mit=None, verbose=False):
     """
     Estimates the interference present in a spectra using the EBS method under pinball loss.
     The optimization is performed using the CLARABEL solver.
+
+    Args
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
@@ -61,14 +66,15 @@ def ebs_pb(y, V, tau=0.1, mit=None, verbose=False):
         Asymmetric loss parameter in (0, 1).
     mit: int
         Maximum allowable number of iterations, not used currently.
+
     Returns
-    -------
+    ----------
     sigma_hat :
         tuple:
             - np.ndarray: The estimated interference.
             - np.ndarray: The latent loadings.
     Notes
-    -------
+    ----------
     Optionally, one can use the right singular vectors after centering the interferenece examples. In this case
     pass y - mu, mu the mean interference spectrum, instead of y and add mu to the interference afterward. One
     could also scale the right singular vectors by their corresponding singulat values.
@@ -85,7 +91,8 @@ def ebs_pb(y, V, tau=0.1, mit=None, verbose=False):
 class EBS:
     """
     Eliminate Background Spectrum (EBS) algorithm for interference remocal in spectral data.
-    Parameters
+
+    Args
     ----------
     tau : float, optional
         Asymmetric loss parameter in (0, 1).
@@ -96,6 +103,7 @@ class EBS:
         Default is "PB".
     mit : int, optional
         Maximum number of iterations for the ALS algorithm (default is 100).
+
     Attributes
     ----------
     tau : float
@@ -110,6 +118,7 @@ class EBS:
         Estimated interference spectrum.
     absorbance : ndarray
         Estimated absorbance spectrum.
+
     Methods
     -------
     fit(y, mu, W)
