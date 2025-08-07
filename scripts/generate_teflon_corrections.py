@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import time
 from pathlib import Path
 from tqdm import tqdm
 from vebir.pca import pca, loo_pca
@@ -157,13 +158,21 @@ except FileNotFoundError:
     veb_als_dict = {}
 
     for comp in raw_spectra_dict:
+        veb_als_dict[comp] = {}
         Y = np.array(raw_spectra_dict[comp]["raw"])
-        corrections = np.zeros([Y.shape[0], Y.shape[1]])
         for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
             mod.fit(Y[i, :], mu, W)
             mod.map(Y[i, :], mu, W)
-            corrections[i, :] = mod.absorbance
-        veb_als_dict[comp] = corrections
+            end = time.time()
+            veb_als_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
 
     with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "wb") as f:
         pickle.dump(veb_als_dict, f)
@@ -179,13 +188,21 @@ except FileNotFoundError:
     veb_pb_dict = {}
 
     for comp in raw_spectra_dict:
+        veb_pb_dict[comp] = {}
         Y = np.array(raw_spectra_dict[comp]["raw"])
-        corrections = np.zeros([Y.shape[0], Y.shape[1]])
         for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
             mod.fit(Y[i, :], mu, W)
             mod.map(Y[i, :], mu, W)
-            corrections[i, :] = mod.absorbance
-        veb_pb_dict[comp] = corrections
+            end = time.time()
+            veb_pb_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
 
     with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "wb") as f:
         pickle.dump(veb_pb_dict, f)

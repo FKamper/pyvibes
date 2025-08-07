@@ -228,7 +228,7 @@ def als_sigma_hat(y, tau, nu, d, mu, W):
 
 def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
     """
-    Computes the MAP assingment under the VEB-ALS model.
+    Computes the MAP interference under the VEB-ALS model.
     Args:
         y (np.ndarray): Observed spectrum of shape (p,).
         mu (np.ndarray): Mean interference spectrum of shape (p,).
@@ -432,7 +432,7 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
 
 def pb_map(y, mu, W, tau, sigma, mit=None, verbose=False):
     """
-    Computes the MAP assingment under the VEB-PB model.
+    Computes the MAP interference under the VEB-PB model.
     Args:
         y (np.ndarray): Observed spectrum of shape (p,).
         mu (np.ndarray):  Mean interference spectrum of shape (p,).

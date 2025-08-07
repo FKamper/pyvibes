@@ -6,20 +6,28 @@ from sklearn.linear_model import LinearRegression
 
 def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
     """
-    Reconstructs the interference present in a spectra.
-    Given a spectrum `y` and a (scaled) right singular vector matrix `V`, this function finds the coefficient vector `x`
-    that minimizes the asymmetrically weighted least squares (ALS) loss function charaterized by `tau`. The optimization
-    is performed iteratively until convergence or until the maximum number of iterations is reached.
-    Args:
-        y (np.ndarray): Observation vector of shape (n_wavenumbers,).
-        V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
-        tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
-        mit (int, optional): Maximum number of iterations. Default is 100.
-        verbose (bool, optional): If True, prints solver output. Default is False.
-    Returns:
+    Estimates the interference present in a spectra using the EBS method under asymmetrically weighted least squares loss.
+    The optimization is performed iteratively until convergence or until the maximum number of iterations is reached.
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    V : np.ndarray
+        Leading c right singular vectors obtained from a svd of the intereference examples of shape (p,c).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    mit: int
+        Maximum allowable number of iterations
+    Returns
+    -------
+    sigma_hat :
         tuple:
-            - np.ndarray: The reconstructed interference.
-            - np.ndarray: The latent loadings `x`, shape (n_wavenumbers,).
+            - np.ndarray: The estimated interference.
+            - np.ndarray: The latent loadings.
+    Notes
+    -------
+    Optionally, one can use the right singular vectors after centering the interferenece examples. In this case
+    pass y - mu, mu the mean interference spectrum, instead of y and add mu to the interference afterward. One
+    could also scale the right singular vectors by their corresponding singulat values.
     """
 
     reg_mod = LinearRegression(fit_intercept=False)
@@ -42,20 +50,28 @@ def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
 
 def ebs_pb(y, V, tau=0.1, mit=None, verbose=False):
     """
-    Reconstructs the interference present in a spectrum.
-    Given a spectrum `y` and a (scaled) right singular vector matrix `V`, this function finds the coefficient vector `x`
-    that minimizes the pinball loss function charaterized by `tau`. The optimization
-    is performed using convex optimization with the CLARABEL solver.
-    Args:
-        y (np.ndarray): Observation vector of shape (n_wavenumbers,).
-        V (np.ndarray): Right singular vector matrix (possibly scaled) of shape (n_wavenumbers, n_components).
-        tau (float, optional): Parameter controlling the linear penalty term. Default is 0.1.
-        mit (int, optional): Not used.
-        verbose (bool, optional): If True, prints solver output. Default is False.
-    Returns:
+    Estimates the interference present in a spectra using the EBS method under pinball loss.
+    The optimization is performed using the CLARABEL solver.
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    V : np.ndarray
+        Leading c right singular vectors obtained from a svd of the intereference examples of shape (p,c).
+    tau : float
+        Asymmetric loss parameter in (0, 1).
+    mit: int
+        Maximum allowable number of iterations, not used currently.
+    Returns
+    -------
+    sigma_hat :
         tuple:
-            - np.ndarray: The reconstructed interference.
-            - np.ndarray: The latent loadings `x`, shape (n_wavenumbers,).
+            - np.ndarray: The estimated interference.
+            - np.ndarray: The latent loadings.
+    Notes
+    -------
+    Optionally, one can use the right singular vectors after centering the interferenece examples. In this case
+    pass y - mu, mu the mean interference spectrum, instead of y and add mu to the interference afterward. One
+    could also scale the right singular vectors by their corresponding singulat values.
     """
     x = cp.Variable(V.shape[1])
     prob = cp.Problem(
@@ -72,7 +88,7 @@ class EBS:
     Parameters
     ----------
     tau : float, optional
-        Parameter controlling the asymmetry of the loss function (default is 0.1).
+        Asymmetric loss parameter in (0, 1).
     loss : str, optional
         Loss function to use for background estimation. Options are:
             - "PB": Pinball Loss
@@ -89,7 +105,7 @@ class EBS:
     loss : str
         Selected loss function.
     x : ndarray
-        Estimated weights or coefficients from the background estimation.
+        Estimated latent interference loadings.
     interference : ndarray
         Estimated interference spectrum.
     absorbance : ndarray
@@ -103,9 +119,9 @@ class EBS:
         y : ndarray
             Observed spectrum.
         mu : ndarray
-            Mean interference spectrum. Set to zero if centering is not applied.
+            Mean interference spectrum. Set to zero if centering is not applied. Shape (p,c).
         W : ndarray
-            Scaled right singular vector matrix W = VD obtained from a SVD Z - mu = UDV' of the interference examples. Take W = V if no scaling is applied.
+            Scaled/unscaled right singular vectors obtained from a svd of the intereference examples of shape (p,c).
         Updates
         -------
         self.x : ndarray
