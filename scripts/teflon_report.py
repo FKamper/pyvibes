@@ -44,6 +44,8 @@ with open(CORRECTIONS_DIR / "ebs_pb_dict_V.pkl", "rb") as f:
 with open(CORRECTIONS_DIR / "ebs_pb_dict_W.pkl", "rb") as f:
     ebs_pb_dict_W = pickle.load(f)
 
+print("\n===== EBS parameterization comparison =====\n")
+
 df = {}
 
 corrections_dict = {}
@@ -74,11 +76,68 @@ for comp in ref_dict:
 
 df["EBS-PB-LOOCV"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
-for entry in df:
+for entry in df:  # noqa: PLC0206
     for key in df[entry]:
         df[entry][key] = (
             f"{df[entry][key]['mean']:.2f} pm {df[entry][key]['std_err']:.2f}"
         )
 
 df = pd.DataFrame(df).T
+print(df)
+
+print("\n===== EBS comparison to best =====\n")
+
+df.drop(index=["EBS-ALS-IND", "EBS-PB-IND"], inplace=True)
+df.rename(index={"EBS-ALS-LOOCV": "EBS-ALS", "EBS-PB-LOOCV": "EBS-PB"}, inplace=True)
+
+df_new = {}
+
+max_corr = 0
+best_cors_dict = None
+
+for j in range(grid.shape[0]):
+    corrections_dict = {}
+    params = f"ncomp,tau = {int(grid[j, 0])},{grid[j, 1]}"
+    for comp in ref_dict:
+        corrections_dict[comp] = ebs_als_dict_W[comp][params]
+
+    cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+    new_corr = cors_dict["all"]["mean"]
+
+    if new_corr > max_corr:
+        max_corr = new_corr
+        best_params = params
+        best_cors_dict = cors_dict
+
+print(f"EBS-ALS best params: {best_params}")
+df_new["EBS-ALS*"] = best_cors_dict
+
+max_corr = 0
+best_cors_dict = None
+
+for j in range(grid.shape[0]):
+    corrections_dict = {}
+    params = f"ncomp,tau = {int(grid[j, 0])},{grid[j, 1]}"
+    for comp in ref_dict:
+        corrections_dict[comp] = ebs_pb_dict_W[comp][params]
+
+    cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+    new_corr = cors_dict["all"]["mean"]
+
+    if new_corr > max_corr:
+        max_corr = new_corr
+        best_params = params
+        best_cors_dict = cors_dict
+
+print(f"EBS-ALS best params: {best_params}\n")
+df_new["EBS-PB*"] = best_cors_dict
+
+for entry in df_new:  # noqa: PLC0206
+    for key in df_new[entry]:
+        df_new[entry][key] = (
+            f"{df_new[entry][key]['mean']:.2f} pm {df_new[entry][key]['std_err']:.2f}"
+        )
+
+df = pd.concat([df, pd.DataFrame(df_new).T])
+df = df.reindex(["EBS-ALS", "EBS-ALS*", "EBS-PB", "EBS-PB*"])
 print(df)
