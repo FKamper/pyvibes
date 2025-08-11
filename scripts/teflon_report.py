@@ -44,6 +44,12 @@ with open(CORRECTIONS_DIR / "ebs_pb_dict_V.pkl", "rb") as f:
 with open(CORRECTIONS_DIR / "ebs_pb_dict_W.pkl", "rb") as f:
     ebs_pb_dict_W = pickle.load(f)
 
+with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "rb") as f:
+    veb_als_dict = pickle.load(f)
+
+with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "rb") as f:
+    veb_pb_dict = pickle.load(f)
+
 print("\n===== EBS parameterization comparison =====\n")
 
 df = {}
@@ -140,4 +146,39 @@ for entry in df_new:  # noqa: PLC0206
 
 df = pd.concat([df, pd.DataFrame(df_new).T])
 df = df.reindex(["EBS-ALS", "EBS-ALS*", "EBS-PB", "EBS-PB*"])
+print(df)
+
+print("\n===== VEB =====\n")
+
+df = {}
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
+        [veb_als_dict[comp][i]["MAP"] for i in veb_als_dict[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["VEB-ALS"] = cors_dict
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
+        [veb_pb_dict[comp][i]["MAP"] for i in veb_pb_dict[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["VEB-PB"] = cors_dict
+
+for entry in df:
+    for key in df[entry]:
+        df[entry][key] = (
+            f"{df[entry][key]['mean']:.2f} pm {df[entry][key]['std_err']:.2f}"
+        )
+
+df = pd.DataFrame(df).T
 print(df)
