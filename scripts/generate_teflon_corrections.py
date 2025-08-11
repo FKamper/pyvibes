@@ -177,6 +177,36 @@ except FileNotFoundError:
     with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "wb") as f:
         pickle.dump(veb_als_dict, f)
 
+print("\n===== VEB-ALS-Fixed =====\n")
+try:
+    with open(CORRECTIONS_DIR / "veb_als_dict_fixed.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mod = VEB(c=W.shape[1], loss="ALS")
+    veb_als_dict = {}
+
+    for comp in raw_spectra_dict:
+        veb_als_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
+            mod.fit(Y[i, :], mu, W, tau_min=0.10, tau_max=0.10)
+            mod.map(Y[i, :], mu, W)
+            end = time.time()
+            veb_als_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "veb_als_dict_fixed.pkl", "wb") as f:
+        pickle.dump(veb_als_dict, f)
+
 print("\n===== VEB-PB =====\n")
 try:
     with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "rb") as f:
@@ -205,4 +235,34 @@ except FileNotFoundError:
             }
 
     with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "wb") as f:
+        pickle.dump(veb_pb_dict, f)
+
+print("\n===== VEB-PB-Fixed =====\n")
+try:
+    with open(CORRECTIONS_DIR / "veb_pb_dict_fixed.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mod = VEB(c=W.shape[1], loss="PB")
+    veb_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        veb_pb_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
+            mod.fit(Y[i, :], mu, W, tau_min=0.10, tau_max=0.10)
+            mod.map(Y[i, :], mu, W)
+            end = time.time()
+            veb_pb_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "veb_pb_dict_fixed.pkl", "wb") as f:
         pickle.dump(veb_pb_dict, f)
