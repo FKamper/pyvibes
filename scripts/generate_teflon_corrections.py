@@ -5,7 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 from vebir.pca import pca, loo_pca
 from vebir.ebs import EBS
-from vebir.veb import VEB
+from vebir.veb import VEB, MapCV
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
@@ -266,3 +266,169 @@ except FileNotFoundError:
 
     with open(CORRECTIONS_DIR / "veb_pb_dict_fixed.pkl", "wb") as f:
         pickle.dump(veb_pb_dict, f)
+
+print("\n===== VEB-ALS-c =====\n")
+try:
+    with open(CORRECTIONS_DIR / "veb_als_dict_c.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, _, W = pca(Z, detrend=True)
+    veb_als_dict = {}
+
+    for comp in raw_spectra_dict:
+        veb_als_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
+            mod = VEB(c=1, loss="ALS")
+            elbos = []
+            for c in range(1, 54):
+                mod.c = c
+                mod.fit(Y[i, :], mu, W[:, :c], mit=500)
+                elbos.append(mod.elbo)
+
+                if elbos[-1] == np.max(elbos):
+                    tau_init = mod.tau
+                    chat = c
+                    nu_init = mod.nu
+                    d_init = mod.d
+
+                mod.tau_init = mod.tau
+                mod.nu_init = np.append(mod.nu_init, 0)
+                mod.d_init = np.append(mod.d_init, 1)
+
+            mod = VEB(
+                c=chat, tau_init=tau_init, nu_init=nu_init, d_init=d_init, loss="ALS"
+            )
+            mod.fit(Y[i, :], mu, W[:, :chat])
+            mod.map(Y[i, :], mu, W[:, :chat])
+            end = time.time()
+
+            veb_als_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "chat": chat,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "veb_als_dict_c.pkl", "wb") as f:
+        pickle.dump(veb_als_dict, f)
+
+print("\n===== VEB-PB-c =====\n")
+try:
+    with open(CORRECTIONS_DIR / "veb_pb_dict_c.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    mu, _, _, W = pca(Z, detrend=True)
+    veb_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        veb_pb_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            start = time.time()
+            mod = VEB(c=1)
+            elbos = []
+            for c in range(1, 54):
+                mod.c = c
+                mod.fit(Y[i, :], mu, W[:, :c], mit=500)
+                elbos.append(mod.elbo)
+
+                if elbos[-1] == np.max(elbos):
+                    tau_init = mod.tau
+                    chat = c
+                    nu_init = mod.nu
+                    d_init = mod.d
+
+                mod.tau_init = mod.tau
+                mod.nu_init = np.append(mod.nu_init, 0)
+                mod.d_init = np.append(mod.d_init, 1)
+
+            mod = VEB(c=chat, tau_init=tau_init, nu_init=nu_init, d_init=d_init)
+            mod.fit(Y[i, :], mu, W[:, :chat])
+            mod.map(Y[i, :], mu, W[:, :chat])
+            end = time.time()
+
+            veb_pb_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "chat": chat,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma_hat,
+                "nu": mod.nu,
+                "d": mod.d,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "veb_pb_dict_c.pkl", "wb") as f:
+        pickle.dump(veb_pb_dict, f)
+
+print("\n===== MAP-ALS-CV =====\n")
+chat_cv = loo_pca(Z)[1]
+mu, _, _, W = pca(Z, detrend=True)
+W = W[:, :chat_cv]
+
+try:
+    with open(CORRECTIONS_DIR / "map_als_dict.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    map_als_dict = {}
+
+    for comp in raw_spectra_dict:
+        map_als_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            mod = MapCV(Y[i, :], mu, W, loss="ALS")
+            start = time.time()
+            mod.initialize()
+            mod.search()
+            mod.map()
+            end = time.time()
+
+            map_als_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "map_als_dict.pkl", "wb") as f:
+        pickle.dump(map_als_dict, f)
+
+print("\n===== MAP-ALS-PB =====\n")
+try:
+    with open(CORRECTIONS_DIR / "map_pb_dict.pkl", "rb") as f:
+        pickle.load(f)
+        print("Corrections already exist.")
+
+except FileNotFoundError:
+    map_pb_dict = {}
+
+    for comp in raw_spectra_dict:
+        map_pb_dict[comp] = {}
+        Y = np.array(raw_spectra_dict[comp]["raw"])
+        for i in tqdm(range(Y.shape[0]), desc=comp):
+            mod = MapCV(Y[i, :], mu, W, loss="PB")
+            start = time.time()
+            mod.initialize()
+            mod.search()
+            mod.map()
+            end = time.time()
+
+            map_pb_dict[comp][i] = {
+                "MAP": mod.absorbance,
+                "tau": mod.tau,
+                "sigma_hat": mod.sigma,
+                "time": end - start,
+            }
+
+    with open(CORRECTIONS_DIR / "map_pb_dict.pkl", "wb") as f:
+        pickle.dump(map_pb_dict, f)

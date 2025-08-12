@@ -50,11 +50,23 @@ with open(CORRECTIONS_DIR / "veb_als_dict.pkl", "rb") as f:
 with open(CORRECTIONS_DIR / "veb_als_dict_fixed.pkl", "rb") as f:
     veb_als_dict_fixed = pickle.load(f)
 
+with open(CORRECTIONS_DIR / "veb_als_dict_c.pkl", "rb") as f:
+    veb_als_dict_c = pickle.load(f)
+
 with open(CORRECTIONS_DIR / "veb_pb_dict.pkl", "rb") as f:
     veb_pb_dict = pickle.load(f)
 
 with open(CORRECTIONS_DIR / "veb_pb_dict_fixed.pkl", "rb") as f:
     veb_pb_dict_fixed = pickle.load(f)
+
+with open(CORRECTIONS_DIR / "veb_pb_dict_c.pkl", "rb") as f:
+    veb_pb_dict_c = pickle.load(f)
+
+with open(CORRECTIONS_DIR / "map_als_dict.pkl", "rb") as f:
+    map_als_dict = pickle.load(f)
+
+with open(CORRECTIONS_DIR / "map_pb_dict.pkl", "rb") as f:
+    map_pb_dict = pickle.load(f)
 
 print("\n===== EBS parameterization comparison =====\n")
 
@@ -183,6 +195,28 @@ df["VEB-ALS-Fixed"] = cors_dict
 corrections_dict = {}
 for comp in ref_dict:
     corrections_dict[comp] = np.array(
+        [veb_als_dict_c[comp][i]["MAP"] for i in veb_als_dict_c[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["VEB-ALS-c"] = cors_dict
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
+        [map_als_dict[comp][i]["MAP"] for i in map_als_dict[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["MAP-ALS-CV"] = cors_dict
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
         [veb_pb_dict[comp][i]["MAP"] for i in veb_pb_dict[comp]]
     )
 
@@ -201,6 +235,29 @@ cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
 new_corr = cors_dict["all"]["mean"]
 
 df["VEB-PB-Fixed"] = cors_dict
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
+        [veb_pb_dict_c[comp][i]["MAP"] for i in veb_pb_dict_c[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["VEB-PB-c"] = cors_dict
+
+corrections_dict = {}
+for comp in ref_dict:
+    corrections_dict[comp] = np.array(
+        [map_pb_dict[comp][i]["MAP"] for i in map_pb_dict[comp]]
+    )
+
+cors_dict = compute_method_cors(corrections_dict, ref_dict, wn)
+new_corr = cors_dict["all"]["mean"]
+
+df["MAP-PB-CV"] = cors_dict
+
 
 for entry in df:
     for key in df[entry]:

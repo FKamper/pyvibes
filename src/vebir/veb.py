@@ -6,6 +6,44 @@ from sklearn.linear_model import Ridge
 from tqdm import tqdm
 
 
+def pinball_loss(a, tau=0.1):
+    """
+    Compute the component-wise pinball loss values.
+
+    Args:
+    ----------
+    a : np.ndarray
+        The input array for which to compute the loss values.
+
+    Returns
+    ----------
+    np.ndarray
+        The computed pinball loss values.
+    """
+    return 0.5 * np.abs(a) + (tau - 0.5) * a
+
+
+def als_loss(a, tau=0.1):
+    """
+    Compute the component-wise asymmetrically weighted squared loss values.
+
+     Args:
+    ----------
+    a : np.ndarray
+        The input array for which to compute the loss values.
+
+    Returns
+    ----------
+    np.ndarray
+        The computed asymmetrically weighted squared loss values.
+    """
+    loss = a**2
+    loss[a > 0] = tau * loss[a > 0]
+    loss[a < 0] = (1 - tau) * loss[a < 0]
+
+    return loss
+
+
 def norm_cdf(z):
     """
     Calculates the cumulative distribution function (CDF) of the standard normal distribution for a given value.
@@ -619,7 +657,7 @@ class VEB:
 
         self.tau, self.nu, t0 = opt.x[0], opt.x[1 : (1 + self.c)], self.c + 1
         self.d = opt.x[t0:]
-
+        self.elbo = -opt.fun
         self.sigma_hat = self.comp_sigma_hat(y, self.tau, self.nu, self.d, mu, W)
 
     def map(self, y, mu, W, mit=100):
@@ -633,3 +671,95 @@ class VEB:
             verbose=False,
         )
         self.absorbance = y - self.interference
+
+
+class MapCV:
+    def __init__(
+        self,
+        y,
+        mu,
+        W,
+        loss="PB",
+        sigma=0.0001,
+        tau=0.1,
+        num_folds=5,
+    ):
+        self.loss = loss
+        self.sigma = sigma
+        self.num_folds = num_folds
+        self.tau = tau
+        self.y = y
+        self.mu = mu
+        self.W = W
+        self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
+
+        self.prev_sigma = None
+        self.current_loss_val = None
+        self.prev_loss_val = None
+        self.break_loop = False
+
+        if self.loss == "ALS":
+            self.loss_fun = als_loss
+            self.comp_map = als_map
+        if self.loss == "PB":
+            self.loss_fun = pinball_loss
+            self.comp_map = pb_map
+
+    def compute_cv_err(self, sigma):
+        a = np.zeros(self.y.shape[0])
+        for fold in self.folds:
+            keep_idx = np.concatenate([f for f in self.folds if f is not fold])
+            _, x = self.comp_map(
+                self.y[keep_idx],
+                self.mu[keep_idx],
+                self.W[keep_idx, :],
+                tau=self.tau,
+                sigma=sigma,
+            )
+            a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :] @ x)
+
+        return np.sum(self.loss_fun(a, tau=self.tau))
+
+    def initialize(self):
+        self.prev_loss_val = self.compute_cv_err(self.sigma)
+        loss_low = self.compute_cv_err(self.sigma / 2)
+        loss_high = self.compute_cv_err(self.sigma * 2)
+
+        self.prev_sigma = self.sigma
+        if loss_low < loss_high:
+            self.current_loss_val = loss_low
+            self.sigma /= 2
+        else:
+            self.current_loss_val = loss_high
+            self.sigma *= 2
+
+    def search(self, mit=100):
+        m = 0
+        while not self.break_loop:
+            if self.sigma > self.prev_sigma:
+                sigma_new = self.sigma * 2
+            else:
+                sigma_new = self.prev_sigma / 2
+
+            self.prev_sigma = self.sigma
+            self.sigma = sigma_new
+            self.prev_loss_val = self.current_loss_val
+            self.current_loss_val = self.compute_cv_err(self.sigma)
+            m += 1
+            if m == mit or self.current_loss_val > self.prev_loss_val:
+                self.break_loop = True
+
+        self.sigma = self.prev_sigma
+        self.current_loss_val = self.prev_loss_val
+
+    def map(self, mit=100):
+        self.interference, self.x = self.comp_map(
+            self.y,
+            self.mu,
+            self.W,
+            self.tau,
+            self.sigma,
+            mit,
+            verbose=False,
+        )
+        self.absorbance = self.y - self.interference
