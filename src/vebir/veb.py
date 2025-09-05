@@ -600,7 +600,7 @@ class VEB:
 
     Methods
     -------
-    fit(y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10)
+    fit(y, mu, W, mit=20000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10)
         Fit the VEB model to the data.
     map(y, mu, W, mit)
         Compute the interference and absorbance using the fitted model.
@@ -763,3 +763,107 @@ class MapCV:
             verbose=False,
         )
         self.absorbance = self.y - self.interference
+
+
+# class MapCV:
+#     def __init__(
+#         self,
+#         y,
+#         mu,
+#         W,
+#         loss="PB",
+#         sigma=0.0001,
+#         tau=0.1,
+#         num_folds=5,
+#         tau_max=0.25,
+#     ):
+#         self.loss = loss
+#         self.best_sigma = sigma
+#         self.best_tau = tau
+#         self.tau_max = tau_max
+#         self.num_folds = num_folds
+#         self.y = y
+#         self.mu = mu
+#         self.W = W
+#         self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
+
+#         self.prev_sigma = None
+#         self.current_loss_val = None
+#         self.prev_loss_val = None
+#         self.break_loop = False
+
+#         if self.loss == "ALS":
+#             self.loss_fun = als_loss
+#             self.comp_map = als_map
+#         if self.loss == "PB":
+#             self.loss_fun = pinball_loss
+#             self.comp_map = pb_map
+
+#     def compute_cv_err(self, tau, sigma):
+#         a = np.zeros(self.y.shape[0])
+#         for fold in self.folds:
+#             keep_idx = np.concatenate([f for f in self.folds if f is not fold])
+#             _, x = self.comp_map(
+#                 self.y[keep_idx],
+#                 self.mu[keep_idx],
+#                 self.W[keep_idx, :],
+#                 tau=tau,
+#                 sigma=sigma,
+#             )
+#             a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :] @ x)
+
+#         return np.sum(self.loss_fun(a, tau=tau))
+
+#     def initialize(self):
+#         local_grid = {}
+
+#         for i in [0.5, 1, 2]:
+#             for j in [0.5, 1, 2]:
+#                 tau = min(i * self.best_tau, self.tau_max)
+#                 sigma = j * self.best_sigma
+#                 local_grid[(tau, sigma)] = self.compute_cv_err(tau, sigma)
+
+#         self.local_grid = local_grid
+#         self.best_tau, self.best_sigma = min(self.local_grid, key=self.local_grid.get)
+#         self.min_loss = self.local_grid[(self.best_tau, self.best_sigma)]
+
+#     def local_search(self):
+#         local_grid = {}
+
+#         for i in [0.5, 1, 2]:
+#             for j in [0.5, 1, 2]:
+#                 tau = min(i * self.best_tau, self.tau_max)
+#                 sigma = j * self.best_sigma
+
+#                 try:
+#                     local_grid[(tau, sigma)] = self.local_grid[(tau, sigma)]
+#                 except KeyError:
+#                     local_grid[(tau, sigma)] = self.compute_cv_err(tau, sigma)
+
+#         self.local_grid = local_grid
+
+#     def search(self, mit=100):
+#         for i in range(mit):
+#             self.local_search()
+#             best_tau, best_sigma = min(self.local_grid, key=self.local_grid.get)
+#             min_loss = self.local_grid[(best_tau, best_sigma)]
+
+#             if min_loss < self.min_loss:
+#                 self.best_tau = best_tau
+#                 self.best_sigma = best_sigma
+#                 self.min_loss = min_loss
+
+#             else:
+#                 break
+
+#     def map(self, mit=100):
+#         self.interference, self.x = self.comp_map(
+#             self.y,
+#             self.mu,
+#             self.W,
+#             self.best_tau,
+#             self.best_sigma,
+#             mit,
+#             verbose=False,
+#         )
+#         self.absorbance = self.y - self.interference

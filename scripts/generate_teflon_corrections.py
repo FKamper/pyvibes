@@ -395,7 +395,6 @@ except FileNotFoundError:
 
             map_als_dict[comp][i] = {
                 "MAP": mod.absorbance,
-                "tau": mod.tau,
                 "sigma_hat": mod.sigma,
                 "time": end - start,
             }
@@ -425,7 +424,6 @@ except FileNotFoundError:
 
             map_pb_dict[comp][i] = {
                 "MAP": mod.absorbance,
-                "tau": mod.tau,
                 "sigma_hat": mod.sigma,
                 "time": end - start,
             }
