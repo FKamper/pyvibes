@@ -4,6 +4,7 @@ from scipy.special import erf
 from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
 from tqdm import tqdm
+from itertools import product
 
 
 def pinball_loss(a, tau=0.1):
@@ -185,6 +186,7 @@ def veb_als_jac_elbo(y, tau, nu, d, mu, W):
     dnu = (
         W.T @ (2 * theta * (1 - tau) + 2 * (2 * tau - 1) * (delta * phi + theta * Phi))
     ) / sigma_hat - nu
+
     dd = 1 / d - d - 2 * ((W**2).T @ (1 - tau + (2 * tau - 1) * Phi)) * (d / sigma_hat)
 
     return dtau, dnu, dd
@@ -680,23 +682,20 @@ class MapCV:
         mu,
         W,
         loss="PB",
-        sigma=0.0001,
-        tau=0.1,
+        sigma_init=0.0001,
+        tau_grid=[0.1],
+        c_grid=[10],
         num_folds=5,
     ):
         self.loss = loss
-        self.sigma = sigma
+        self.sigma_init = sigma_init
         self.num_folds = num_folds
-        self.tau = tau
+        self.tau_grid = tau_grid
+        self.c_grid = c_grid
         self.y = y
         self.mu = mu
         self.W = W
         self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
-
-        self.prev_sigma = None
-        self.current_loss_val = None
-        self.prev_loss_val = None
-        self.break_loop = False
 
         if self.loss == "ALS":
             self.loss_fun = als_loss
@@ -705,64 +704,186 @@ class MapCV:
             self.loss_fun = pinball_loss
             self.comp_map = pb_map
 
-    def compute_cv_err(self, sigma):
+    def compute_cv_err(self, tau, c, sigma):
         a = np.zeros(self.y.shape[0])
         for fold in self.folds:
             keep_idx = np.concatenate([f for f in self.folds if f is not fold])
             _, x = self.comp_map(
                 self.y[keep_idx],
                 self.mu[keep_idx],
-                self.W[keep_idx, :],
-                tau=self.tau,
+                self.W[keep_idx, :c],
+                tau=tau,
                 sigma=sigma,
             )
-            a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :] @ x)
+            a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :c] @ x)
 
-        return np.sum(self.loss_fun(a, tau=self.tau))
+        return np.sum(self.loss_fun(a, tau=tau))
 
-    def initialize(self):
-        self.prev_loss_val = self.compute_cv_err(self.sigma)
-        loss_low = self.compute_cv_err(self.sigma / 2)
-        loss_high = self.compute_cv_err(self.sigma * 2)
+    def local_searches_sigma(self, tau, c, sigma, mit=100):
+        break_loop = False
 
-        self.prev_sigma = self.sigma
-        if loss_low < loss_high:
-            self.current_loss_val = loss_low
-            self.sigma /= 2
+        prev_loss_val = self.compute_cv_err(tau, c, sigma)
+        loss_low = self.compute_cv_err(tau, c, sigma / 2)
+        loss_high = self.compute_cv_err(tau, c, sigma * 2)
+
+        prev_sigma = sigma
+        if prev_loss_val <= min(loss_low, loss_high):
+            break_loop = True
+            current_loss_val = prev_loss_val
+        elif loss_low < loss_high:
+            current_loss_val = loss_low
+            sigma /= 2
         else:
-            self.current_loss_val = loss_high
-            self.sigma *= 2
+            current_loss_val = loss_high
+            sigma *= 2
 
-    def search(self, mit=100):
         m = 0
-        while not self.break_loop:
-            if self.sigma > self.prev_sigma:
-                sigma_new = self.sigma * 2
+        while not break_loop:
+            if sigma > prev_sigma:
+                sigma_new = sigma * 2
             else:
-                sigma_new = self.prev_sigma / 2
+                sigma_new = sigma / 2
 
-            self.prev_sigma = self.sigma
-            self.sigma = sigma_new
-            self.prev_loss_val = self.current_loss_val
-            self.current_loss_val = self.compute_cv_err(self.sigma)
+            prev_sigma = sigma
+            prev_loss_val = current_loss_val
+            current_loss_val = self.compute_cv_err(tau, c, sigma_new)
+
+            if current_loss_val < prev_loss_val:
+                sigma = sigma_new
+            else:
+                current_loss_val = prev_loss_val
+                break_loop = True
+
             m += 1
-            if m == mit or self.current_loss_val > self.prev_loss_val:
-                self.break_loop = True
+            if m == mit:
+                break_loop = True
 
-        self.sigma = self.prev_sigma
-        self.current_loss_val = self.prev_loss_val
+        return sigma, current_loss_val
+
+    def compute_cv_errs(self, mit=100, verbose=False):
+        self.cv_errs = np.zeros((len(self.tau_grid), len(self.c_grid)))
+        self.best_sigma = np.zeros((len(self.tau_grid), len(self.c_grid)))
+
+        idx_pairs = list(
+            product(range(self.cv_errs.shape[0]), range(self.cv_errs.shape[1]))
+        )
+
+        for i, j in tqdm(idx_pairs, disable=not verbose):
+            sigma, current_loss_val = self.local_searches_sigma(
+                self.tau_grid[i], self.c_grid[j], self.sigma_init, mit=mit
+            )
+
+            self.cv_errs[i, j] = current_loss_val
+            self.best_sigma[i, j] = sigma
+
+        row_idx, col_idx = np.unravel_index(np.argmin(self.cv_errs), self.cv_errs.shape)
+        self.opt_tau = self.tau_grid[row_idx]
+        self.opt_c = self.c_grid[col_idx]
+        self.opt_sigma = self.best_sigma[row_idx, col_idx]
 
     def map(self, mit=100):
         self.interference, self.x = self.comp_map(
             self.y,
             self.mu,
-            self.W,
-            self.tau,
-            self.sigma,
+            self.W[:, : self.opt_c],
+            self.opt_tau,
+            self.opt_sigma,
             mit,
             verbose=False,
         )
         self.absorbance = self.y - self.interference
+
+
+# class MapCV:
+#     def __init__(
+#         self,
+#         y,
+#         mu,
+#         W,
+#         loss="PB",
+#         sigma=0.0001,
+#         tau=0.1,
+#         num_folds=5,
+#     ):
+#         self.loss = loss
+#         self.sigma = sigma
+#         self.num_folds = num_folds
+#         self.tau = tau
+#         self.y = y
+#         self.mu = mu
+#         self.W = W
+#         self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
+
+#         self.prev_sigma = None
+#         self.current_loss_val = None
+#         self.prev_loss_val = None
+#         self.break_loop = False
+
+#         if self.loss == "ALS":
+#             self.loss_fun = als_loss
+#             self.comp_map = als_map
+#         if self.loss == "PB":
+#             self.loss_fun = pinball_loss
+#             self.comp_map = pb_map
+
+#     def compute_cv_err(self, sigma):
+#         a = np.zeros(self.y.shape[0])
+#         for fold in self.folds:
+#             keep_idx = np.concatenate([f for f in self.folds if f is not fold])
+#             _, x = self.comp_map(
+#                 self.y[keep_idx],
+#                 self.mu[keep_idx],
+#                 self.W[keep_idx, :],
+#                 tau=self.tau,
+#                 sigma=sigma,
+#             )
+#             a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :] @ x)
+
+#         return np.sum(self.loss_fun(a, tau=self.tau))
+
+#     def initialize(self):
+#         self.prev_loss_val = self.compute_cv_err(self.sigma)
+#         loss_low = self.compute_cv_err(self.sigma / 2)
+#         loss_high = self.compute_cv_err(self.sigma * 2)
+
+#         self.prev_sigma = self.sigma
+#         if loss_low < loss_high:
+#             self.current_loss_val = loss_low
+#             self.sigma /= 2
+#         else:
+#             self.current_loss_val = loss_high
+#             self.sigma *= 2
+
+#     def search(self, mit=100):
+#         m = 0
+#         while not self.break_loop:
+#             if self.sigma > self.prev_sigma:
+#                 sigma_new = self.sigma * 2
+#             else:
+#                 sigma_new = self.prev_sigma / 2
+
+#             self.prev_sigma = self.sigma
+#             self.sigma = sigma_new
+#             self.prev_loss_val = self.current_loss_val
+#             self.current_loss_val = self.compute_cv_err(self.sigma)
+#             m += 1
+#             if m == mit or self.current_loss_val > self.prev_loss_val:
+#                 self.break_loop = True
+
+#         self.sigma = self.prev_sigma
+#         self.current_loss_val = self.prev_loss_val
+
+#     def map(self, mit=100):
+#         self.interference, self.x = self.comp_map(
+#             self.y,
+#             self.mu,
+#             self.W,
+#             self.tau,
+#             self.sigma,
+#             mit,
+#             verbose=False,
+#         )
+#         self.absorbance = self.y - self.interference
 
 
 # class MapCV:

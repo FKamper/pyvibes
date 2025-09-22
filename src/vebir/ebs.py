@@ -2,6 +2,8 @@ import numpy as np
 import cvxpy as cp
 from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
+from vebir.veb import pinball_loss, als_loss
+from itertools import product
 
 
 def ebs_als(y, V, tau=0.1, mit=100, verbose=False):
@@ -161,3 +163,63 @@ class EBS:
         )
         self.interference = mu + self.interference
         self.absorbance = y - self.interference
+
+
+class EbsCV:
+    def __init__(
+        self,
+        y,
+        mu,
+        W,
+        loss="PB",
+        tau_grid=[0.1],
+        c_grid=[10],
+        num_folds=5,
+    ):
+        self.loss = loss
+        self.num_folds = num_folds
+
+        self.tau_grid = tau_grid
+        self.c_grid = c_grid
+        self.y = y
+        self.mu = mu
+        self.W = W
+        self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
+
+        if self.loss == "ALS":
+            self.loss_fun = als_loss
+            self.interference_estimator = ebs_als
+        if self.loss == "PB":
+            self.loss_fun = pinball_loss
+            self.interference_estimator = ebs_pb
+
+    def compute_cv_errors(self, verbose=False):
+        self.cv_errs = np.zeros((len(self.tau_grid), len(self.c_grid)))
+        idx_pairs = list(
+            product(range(self.cv_errs.shape[0]), range(self.cv_errs.shape[1]))
+        )
+
+        for i, j in tqdm(idx_pairs, disable=not verbose):
+            a = np.zeros(self.y.shape[0])
+            tau = self.tau_grid[i]
+            c = self.c_grid[j]
+
+            for fold in self.folds:
+                keep_idx = np.concatenate([f for f in self.folds if f is not fold])
+                _, x = self.interference_estimator(
+                    (self.y - self.mu)[keep_idx], self.W[keep_idx, :c], tau=tau
+                )
+                a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :c] @ x)
+
+            self.cv_errs[i, j] = np.sum(self.loss_fun(a, tau=tau))
+
+        row_idx, col_idx = np.unravel_index(np.argmin(self.cv_errs), self.cv_errs.shape)
+        self.opt_tau = self.tau_grid[row_idx]
+        self.opt_c = self.c_grid[col_idx]
+
+    def estimate_absorbance(self, mit=100):
+        self.z, self.x = self.interference_estimator(
+            (self.y - self.mu), self.W[:, : self.opt_c], tau=self.opt_tau, mit=mit
+        )
+        self.interference = self.mu + self.z
+        self.absorbance = self.y - self.interference
