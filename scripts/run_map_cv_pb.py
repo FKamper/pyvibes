@@ -6,7 +6,7 @@ import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.ebs import EbsCV
+from vebir.veb import MapCV
 from vebir.metrics_utils import compute_method_cors
 from vebir.pca import pca, loo_pca
 
@@ -14,10 +14,10 @@ from vebir.pca import pca, loo_pca
 def distribute_function(args):
     y, mu, W, tau_grid, c_grid, loss = args
 
-    mod = EbsCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+    mod = MapCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
     start = time.time()
-    mod.compute_cv_errors(verbose=False)
-    mod.estimate_absorbance()
+    mod.compute_cv_errs(verbose=False)
+    mod.map()
     end = time.time()
 
     res = {
@@ -34,7 +34,7 @@ def distribute_function(args):
 if __name__ == "__main__":
     REPO_ROOT = Path(__file__).resolve().parents[1]
     PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
-    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "ebs" / "pb"
+    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "map_cv" / "pb"
     GT_DIR = REPO_ROOT / "data" / "spectrabase" / "teflon"
     LAB_DIR = REPO_ROOT / "data" / "raw" / "teflon" / "laboratory_samples"
 
