@@ -315,7 +315,7 @@ def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
             - z (np.ndarray): MAP interference.
             - coef_ (np.ndarray): MAP latent coefficients.
     """
-    reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2)
+    reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2, solver="svd")
 
     w = np.repeat(tau, y.shape[0])
 
