@@ -1,7 +1,7 @@
 import numpy as np
 import cvxpy as cp
 
-from vebir.veb import norm_pdf, norm_cdf
+from vebir.absorbance_estimators.veb import norm_pdf, norm_cdf
 
 
 def veb_pb_elbo(y, tau, nu, d, mu, W):

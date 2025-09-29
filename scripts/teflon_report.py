@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from vebir.pca import loo_pca, malinowski_ind
+from vebir.interference_models.pca import loo_pca, malinowski_ind
 from vebir.metrics_utils import compute_method_cors
 
 

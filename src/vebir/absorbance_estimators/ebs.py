@@ -2,7 +2,7 @@ import numpy as np
 import cvxpy as cp
 from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
-from vebir.veb import pinball_loss, als_loss
+from vebir.utils.loss_functions import pinball_loss, als_loss
 from itertools import product
 
 

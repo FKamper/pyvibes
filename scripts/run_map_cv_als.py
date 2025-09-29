@@ -6,9 +6,9 @@ import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.veb import MapCV
-from vebir.metrics_utils import compute_method_cors
-from vebir.pca import pca, loo_pca
+from vebir.absorbance_estimators.veb import MapCV
+from vebir.utils.metrics import compute_method_cors
+from vebir.interference_models.pca import pca, loo_pca
 
 
 def distribute_function(args):

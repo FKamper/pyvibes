@@ -3,9 +3,9 @@ import numpy as np
 import time
 from pathlib import Path
 from tqdm import tqdm
-from vebir.pca import pca, loo_pca
-from vebir.ebs import EBS
-from vebir.veb import VEB, MapCV
+from vebir.interference_models.pca import pca, loo_pca
+from vebir.absorbance_estimators.ebs import EBS
+from vebir.absorbance_estimators.veb import VEB, MapCV
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
