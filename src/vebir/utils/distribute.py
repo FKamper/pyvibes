@@ -20,6 +20,7 @@ def distribute_veb(args):
         "sigma_hat": mod.sigma_hat,
         "nu": mod.nu,
         "d": mod.d,
+        "x": mod.x,
     }
 
     return res
@@ -75,6 +76,7 @@ def distribute_veb_c(args):
         "sigma_hat": mod.sigma_hat,
         "nu": mod.nu,
         "d": mod.d,
+        "x": mod.x,
     }
 
     return res

@@ -91,10 +91,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "fixed.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "fixed_corrections.csv")
 
     df["Fixed"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
@@ -129,10 +135,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "cv_tau.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "tau_corrections.csv")
 
     df["CV-tau"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
@@ -167,10 +179,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "cv_c.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "c_corrections.csv")
 
     df["CV-c"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
@@ -205,10 +223,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "cv_c_tau.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "c_tau_corrections.csv")
 
     df["CV-c-tau"] = compute_method_cors(corrections_dict, ref_dict, wn)
 

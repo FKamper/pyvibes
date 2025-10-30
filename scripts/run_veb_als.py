@@ -148,10 +148,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "sigma.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "sigma_corrections.csv")
 
     df["sigma"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
@@ -186,10 +192,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "sigma_tau.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "sigma_tau_corrections.csv")
 
     df["sigma_tau"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
@@ -226,10 +238,16 @@ if __name__ == "__main__":
         with open(CORRECTIONS_DIR / "sigma_tau_c.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
+    df_corrections = []
     for comp in ref_dict:
+        df_comp = raw_spectra_dict[comp]["raw"]
         corrections_dict[comp] = np.array(
             [i["absorbance"] for i in corrections_dict[comp]]
         )
+        df_comp.iloc[:, :] = corrections_dict[comp]
+        df_corrections.append(df_comp)
+    df_corrections = pd.concat(df_corrections)
+    df_corrections.to_csv(CORRECTIONS_DIR / "sigma_tau_c_corrections.csv")
 
     df["sigma_tau_c"] = compute_method_cors(corrections_dict, ref_dict, wn)
 
