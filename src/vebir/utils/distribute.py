@@ -1,10 +1,12 @@
 import time
 import numpy as np
 from vebir.absorbance_estimators.veb import VEB
+from vebir.absorbance_estimators.ebs import EbsCV
+from vebir.utils.metrics import compute_latent_KL_divergence
 
 
 def distribute_veb(args):
-    y, mu, W, tau_min, tau_max, loss = args
+    y, mu, W, tau_min, tau_max, loss, sample_id = args
 
     mod = VEB(c=W.shape[1], loss=loss)
     start = time.time()
@@ -12,7 +14,13 @@ def distribute_veb(args):
     mod.map(y, mu, W)
     end = time.time()
 
+    KL_components = compute_latent_KL_divergence(mod.nu, mod.d)
+    mean_KL = np.mean(KL_components)
+    mean_mdist = np.mean(mod.x**2)
+    zstats = mod.nu / mod.d
+
     res = {
+        "sample_id": sample_id,
         "absorbance": mod.absorbance,
         "time": end - start,
         "tau": mod.tau,
@@ -21,17 +29,22 @@ def distribute_veb(args):
         "nu": mod.nu,
         "d": mod.d,
         "x": mod.x,
+        "KL_components": KL_components,
+        "mean_KL": mean_KL,
+        "mean_mdist": mean_mdist,
+        "zstats": zstats,
     }
 
     return res
 
 
 def distribute_veb_c(args):
-    y, mu, W, tau_min, tau_max, loss, c_grid, mit = args
+    y, mu, W, tau_min, tau_max, loss, c_grid, mit, sample_id = args
 
     start = time.time()
     mod = VEB(c=c_grid[0], loss=loss)
     elbos = []
+
     for i in range(len(c_grid)):
         c = c_grid[i]
         mod.c = c
@@ -68,7 +81,13 @@ def distribute_veb_c(args):
     mod.map(y, mu, W[:, :chat])
     end = time.time()
 
+    KL_components = compute_latent_KL_divergence(mod.nu, mod.d)
+    mean_KL = np.mean(KL_components)
+    mean_mdist = np.mean(mod.x**2)
+    zstats = mod.nu / mod.d
+
     res = {
+        "sample_id": sample_id,
         "absorbance": mod.absorbance,
         "time": end - start,
         "tau": mod.tau,
@@ -77,6 +96,33 @@ def distribute_veb_c(args):
         "nu": mod.nu,
         "d": mod.d,
         "x": mod.x,
+        "KL_components": KL_components,
+        "mean_KL": mean_KL,
+        "mean_mdist": mean_mdist,
+        "zstats": zstats,
+    }
+
+    return res
+
+
+def distribute_ebs(args):
+    y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
+
+    mod = EbsCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+    start = time.time()
+    mod.compute_cv_errors(verbose=False)
+    mod.estimate_absorbance()
+    end = time.time()
+
+    res = {
+        "sample_id": sample_id,
+        "absorbance": mod.absorbance,
+        "time": end - start,
+        "opt_tau": mod.opt_tau,
+        "opt_c": mod.opt_c,
+        "cv_errs": mod.cv_errs,
+        "x": mod.x,
+        "lam": lam[: mod.opt_c],
     }
 
     return res

@@ -1,34 +1,13 @@
 import pickle
 import numpy as np
-import time
 import multiprocessing as mp
 import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.absorbance_estimators.ebs import EbsCV
-from vebir.utils.metrics import compute_method_cors
+from vebir.utils.distribute import distribute_ebs
 from vebir.interference_models.pca import pca, loo_pca
-
-
-def distribute_function(args):
-    y, mu, W, tau_grid, c_grid, loss = args
-
-    mod = EbsCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
-    start = time.time()
-    mod.compute_cv_errors(verbose=False)
-    mod.estimate_absorbance()
-    end = time.time()
-
-    res = {
-        "absorbance": mod.absorbance,
-        "time": end - start,
-        "opt_tau": mod.opt_tau,
-        "opt_c": mod.opt_c,
-        "cv_errs": mod.cv_errs,
-    }
-
-    return res
+from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics_to_df
 
 
 if __name__ == "__main__":
@@ -47,18 +26,21 @@ if __name__ == "__main__":
     with open(GT_DIR / "ref_dict.pkl", "rb") as file:
         ref_dict = pickle.load(file)
 
+    with open(PREPROC_DIR / "spectra_responses.pkl", "rb") as f:
+        spectra_responses = pickle.load(f)
+
     del ref_dict["CO2"]
 
     Z = np.array(blanks_dict["2011"])
     wn = np.sort(pd.read_csv(LAB_DIR / "zerofilling.txt", header=None).iloc[:, 0])
 
     chat_cv = loo_pca(Z)[1]
-    mu, _, _, W = pca(Z)
+    mu, lam, _, W = pca(Z)
     loss = "PB"
     print(f"OSE-LOOCV estimate: {chat_cv}")
 
     print("\n==================== PFTE ====================\n")
-    df = {}
+    corr_metrics = {}
 
     print("\n========== Running Fixed ==========\n")
 
@@ -74,13 +56,18 @@ if __name__ == "__main__":
         corrections_dict = {}
 
         for comp in raw_spectra_dict:
+            sample_id = raw_spectra_dict[comp]["raw"].copy().index.tolist()
             Y = np.array(raw_spectra_dict[comp]["raw"])
-            distribute_args = [(y, mu, W, tau_grid, c_grid, loss) for y in Y]
+
+            distribute_args = [
+                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                for y, sid in zip(Y, sample_id)
+            ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_function, distribute_args),
+                        pool.imap(distribute_ebs, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -88,26 +75,29 @@ if __name__ == "__main__":
 
             corrections_dict[comp] = results
 
+        for comp in corrections_dict:
+            for entry in corrections_dict[comp]:
+                entry["load"] = np.max(
+                    spectra_responses[comp][["AS", "OC"]].loc[entry["sample_id"]]
+                )
+
+        for comp in ref_dict:
+            gt_wn = ref_dict[comp][:, 0]
+            gt_prof = ref_dict[comp][:, 1]
+            for entry in corrections_dict[comp]:
+                entry["ref_profile_corr"] = np.corrcoef(
+                    np.interp(gt_wn, wn, entry["absorbance"]), gt_prof
+                )[0, 1]
+
         with open(CORRECTIONS_DIR / "fixed.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
-    df_corrections = []
-    for comp in ref_dict:
-        df_comp = raw_spectra_dict[comp]["raw"]
-        corrections_dict[comp] = np.array(
-            [i["absorbance"] for i in corrections_dict[comp]]
-        )
-        df_comp.iloc[:, :] = corrections_dict[comp]
-        df_corrections.append(df_comp)
-    df_corrections = pd.concat(df_corrections)
-    df_corrections.to_csv(CORRECTIONS_DIR / "fixed_corrections.csv")
-
-    df["Fixed"] = compute_method_cors(corrections_dict, ref_dict, wn)
+    corr_metrics["fixed"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
     print("\n========== Running CV-tau ==========\n")
 
     try:
-        with open(CORRECTIONS_DIR / "cv_tau.pkl", "rb") as f:
+        with open(CORRECTIONS_DIR / "tau.pkl", "rb") as f:
             corrections_dict = pickle.load(f)
         print("Corrections exist.")
 
@@ -118,13 +108,18 @@ if __name__ == "__main__":
         corrections_dict = {}
 
         for comp in raw_spectra_dict:
+            sample_id = raw_spectra_dict[comp]["raw"].copy().index.tolist()
             Y = np.array(raw_spectra_dict[comp]["raw"])
-            distribute_args = [(y, mu, W, tau_grid, c_grid, loss) for y in Y]
+
+            distribute_args = [
+                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                for y, sid in zip(Y, sample_id)
+            ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_function, distribute_args),
+                        pool.imap(distribute_ebs, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -132,26 +127,29 @@ if __name__ == "__main__":
 
             corrections_dict[comp] = results
 
-        with open(CORRECTIONS_DIR / "cv_tau.pkl", "wb") as f:
+        for comp in corrections_dict:
+            for entry in corrections_dict[comp]:
+                entry["load"] = np.max(
+                    spectra_responses[comp][["AS", "OC"]].loc[entry["sample_id"]]
+                )
+
+        for comp in ref_dict:
+            gt_wn = ref_dict[comp][:, 0]
+            gt_prof = ref_dict[comp][:, 1]
+            for entry in corrections_dict[comp]:
+                entry["ref_profile_corr"] = np.corrcoef(
+                    np.interp(gt_wn, wn, entry["absorbance"]), gt_prof
+                )[0, 1]
+
+        with open(CORRECTIONS_DIR / "tau.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
-    df_corrections = []
-    for comp in ref_dict:
-        df_comp = raw_spectra_dict[comp]["raw"]
-        corrections_dict[comp] = np.array(
-            [i["absorbance"] for i in corrections_dict[comp]]
-        )
-        df_comp.iloc[:, :] = corrections_dict[comp]
-        df_corrections.append(df_comp)
-    df_corrections = pd.concat(df_corrections)
-    df_corrections.to_csv(CORRECTIONS_DIR / "tau_corrections.csv")
-
-    df["CV-tau"] = compute_method_cors(corrections_dict, ref_dict, wn)
+    corr_metrics["tau"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
     print("\n========== Running CV-c ==========\n")
 
     try:
-        with open(CORRECTIONS_DIR / "cv_c.pkl", "rb") as f:
+        with open(CORRECTIONS_DIR / "c.pkl", "rb") as f:
             corrections_dict = pickle.load(f)
         print("Corrections exist.")
 
@@ -162,13 +160,18 @@ if __name__ == "__main__":
         corrections_dict = {}
 
         for comp in raw_spectra_dict:
+            sample_id = raw_spectra_dict[comp]["raw"].copy().index.tolist()
             Y = np.array(raw_spectra_dict[comp]["raw"])
-            distribute_args = [(y, mu, W, tau_grid, c_grid, loss) for y in Y]
+
+            distribute_args = [
+                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                for y, sid in zip(Y, sample_id)
+            ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_function, distribute_args),
+                        pool.imap(distribute_ebs, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -176,26 +179,29 @@ if __name__ == "__main__":
 
             corrections_dict[comp] = results
 
-        with open(CORRECTIONS_DIR / "cv_c.pkl", "wb") as f:
+        for comp in corrections_dict:
+            for entry in corrections_dict[comp]:
+                entry["load"] = np.max(
+                    spectra_responses[comp][["AS", "OC"]].loc[entry["sample_id"]]
+                )
+
+        for comp in ref_dict:
+            gt_wn = ref_dict[comp][:, 0]
+            gt_prof = ref_dict[comp][:, 1]
+            for entry in corrections_dict[comp]:
+                entry["ref_profile_corr"] = np.corrcoef(
+                    np.interp(gt_wn, wn, entry["absorbance"]), gt_prof
+                )[0, 1]
+
+        with open(CORRECTIONS_DIR / "c.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
-    df_corrections = []
-    for comp in ref_dict:
-        df_comp = raw_spectra_dict[comp]["raw"]
-        corrections_dict[comp] = np.array(
-            [i["absorbance"] for i in corrections_dict[comp]]
-        )
-        df_comp.iloc[:, :] = corrections_dict[comp]
-        df_corrections.append(df_comp)
-    df_corrections = pd.concat(df_corrections)
-    df_corrections.to_csv(CORRECTIONS_DIR / "c_corrections.csv")
-
-    df["CV-c"] = compute_method_cors(corrections_dict, ref_dict, wn)
+    corr_metrics["c"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
     print("\n========== Running CV-c-tau ==========\n")
 
     try:
-        with open(CORRECTIONS_DIR / "cv_c_tau.pkl", "rb") as f:
+        with open(CORRECTIONS_DIR / "c_tau.pkl", "rb") as f:
             corrections_dict = pickle.load(f)
         print("Corrections exist.")
 
@@ -206,13 +212,18 @@ if __name__ == "__main__":
         corrections_dict = {}
 
         for comp in raw_spectra_dict:
+            sample_id = raw_spectra_dict[comp]["raw"].copy().index.tolist()
             Y = np.array(raw_spectra_dict[comp]["raw"])
-            distribute_args = [(y, mu, W, tau_grid, c_grid, loss) for y in Y]
+
+            distribute_args = [
+                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                for y, sid in zip(Y, sample_id)
+            ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_function, distribute_args),
+                        pool.imap(distribute_ebs, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -220,30 +231,29 @@ if __name__ == "__main__":
 
             corrections_dict[comp] = results
 
-        with open(CORRECTIONS_DIR / "cv_c_tau.pkl", "wb") as f:
+        for comp in corrections_dict:
+            for entry in corrections_dict[comp]:
+                entry["load"] = np.max(
+                    spectra_responses[comp][["AS", "OC"]].loc[entry["sample_id"]]
+                )
+
+        for comp in ref_dict:
+            gt_wn = ref_dict[comp][:, 0]
+            gt_prof = ref_dict[comp][:, 1]
+            for entry in corrections_dict[comp]:
+                entry["ref_profile_corr"] = np.corrcoef(
+                    np.interp(gt_wn, wn, entry["absorbance"]), gt_prof
+                )[0, 1]
+
+        with open(CORRECTIONS_DIR / "c_tau.pkl", "wb") as f:
             pickle.dump(corrections_dict, f)
 
-    df_corrections = []
-    for comp in ref_dict:
-        df_comp = raw_spectra_dict[comp]["raw"]
-        corrections_dict[comp] = np.array(
-            [i["absorbance"] for i in corrections_dict[comp]]
-        )
-        df_comp.iloc[:, :] = corrections_dict[comp]
-        df_corrections.append(df_comp)
-    df_corrections = pd.concat(df_corrections)
-    df_corrections.to_csv(CORRECTIONS_DIR / "c_tau_corrections.csv")
-
-    df["CV-c-tau"] = compute_method_cors(corrections_dict, ref_dict, wn)
+    corr_metrics["c_tau"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
     print("\n========== Metrics ==========\n")
 
-    for entry, entry_dict in df.items():
-        for key in entry_dict:
-            entry_dict[key] = (
-                f"{entry_dict[key]['mean']:.2f} pm {entry_dict[key]['std_err']:.2f}"
-            )
+    with open(CORRECTIONS_DIR / "corr_metrics.pkl", "wb") as f:
+        pickle.dump(corr_metrics, f)
 
-    df = pd.DataFrame(df).T
-    print(df)
+    print(correlation_metrics_to_df(corr_metrics))
     print("\n==============================================\n")
