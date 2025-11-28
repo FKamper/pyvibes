@@ -5,15 +5,15 @@ import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.utils.distribute import distribute_ebs
 from vebir.interference_models.pca import pca, loo_pca
+from vebir.utils.distribute import distribute_map_cv
 from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics_to_df
 
 
 if __name__ == "__main__":
     REPO_ROOT = Path(__file__).resolve().parents[1]
     PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
-    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "ebs" / "als"
+    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "map" / "pb"
     GT_DIR = REPO_ROOT / "data" / "spectrabase" / "teflon"
     LAB_DIR = REPO_ROOT / "data" / "raw" / "teflon" / "laboratory_samples"
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     chat_cv = loo_pca(Z)[1]
     mu, lam, _, W = pca(Z)
-    loss = "ALS"
+    loss = "PB"
     print(f"OSE-LOOCV estimate: {chat_cv}")
 
     print("\n==================== PFTE ====================\n")
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_map_cv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -119,7 +119,7 @@ if __name__ == "__main__":
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_map_cv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -171,7 +171,7 @@ if __name__ == "__main__":
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_map_cv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -223,7 +223,7 @@ if __name__ == "__main__":
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_map_cv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )

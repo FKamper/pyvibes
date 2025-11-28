@@ -10,7 +10,6 @@ from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics
 from vebir.interference_models.pca import pca, loo_pca
 from vebir.utils.distribute import (
     distribute_veb,
-    distribute_veb_with_pca,
     distribute_veb_c,
 )
 
@@ -48,6 +47,7 @@ if __name__ == "__main__":
     corr_metrics = {}
 
     print("\n========== VEB-sigma ==========\n")
+    tau_min, tau_max = 0.1, 0.1
 
     try:
         with open(CORRECTIONS_DIR / "sigma.pkl", "rb") as f:
@@ -55,7 +55,6 @@ if __name__ == "__main__":
         print("Corrections exist.")
 
     except FileNotFoundError:
-        tau_min, tau_max = 0.1, 0.1
         corrections_dict = {}
 
         for comp in raw_spectra_dict:
@@ -97,8 +96,28 @@ if __name__ == "__main__":
 
     corr_metrics["sigma"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
+    print("\n")
+
+    corrections_dict = []
+
+    for i in tqdm(
+        range(Z.shape[0]),
+        desc="LOO Blanks",
+    ):
+        y = Z[i, :]
+        Zloo = np.delete(Z, i, axis=0)
+        loo_chat_cv = loo_pca(Zloo)[1]
+        mu_loo, _, _, W_loo = pca(Zloo)
+        W_loo = W_loo[:, :loo_chat_cv]
+
+        args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
+        corrections_dict.append(distribute_veb(args))
+
+    with open(CORRECTIONS_DIR / "loo_blanks_sigma.pkl", "wb") as f:
+        pickle.dump(corrections_dict, f)
+
     print("\n========== VEB-sigma,tau ==========\n")
-    tau_min, tau_max = 1e-5, 0.25
+    tau_min, tau_max = 1e-5, 0.5 + 1e-5
 
     try:
         with open(CORRECTIONS_DIR / "sigma_tau.pkl", "rb") as f:
@@ -155,8 +174,12 @@ if __name__ == "__main__":
     ):
         y = Z[i, :]
         Zloo = np.delete(Z, i, axis=0)
-        args = (y, Zloo, tau_min, tau_max, loss, blanks_id[i])
-        corrections_dict.append(distribute_veb_with_pca(args))
+        loo_chat_cv = loo_pca(Zloo)[1]
+        mu_loo, _, _, W_loo = pca(Zloo)
+        W_loo = W_loo[:, :loo_chat_cv]
+
+        args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
+        corrections_dict.append(distribute_veb(args))
 
     with open(CORRECTIONS_DIR / "loo_blanks_sigma_tau.pkl", "wb") as f:
         pickle.dump(corrections_dict, f)
@@ -169,7 +192,7 @@ if __name__ == "__main__":
         print("Corrections exist.")
 
     except FileNotFoundError:
-        tau_min, tau_max = 0.1, 0.1
+        tau_min, tau_max = 1e-5, 0.25
         c_grid = np.arange(1, 54)
         corrections_dict = {}
         mit = 500

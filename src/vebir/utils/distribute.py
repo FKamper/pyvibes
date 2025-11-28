@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from vebir.absorbance_estimators.veb import VEB
+from vebir.absorbance_estimators.veb import VEB, MapCV
 from vebir.absorbance_estimators.ebs import EbsCV
 from vebir.utils.metrics import compute_latent_KL_divergence
 
@@ -118,6 +118,30 @@ def distribute_ebs(args):
         "sample_id": sample_id,
         "absorbance": mod.absorbance,
         "time": end - start,
+        "opt_tau": mod.opt_tau,
+        "opt_c": mod.opt_c,
+        "cv_errs": mod.cv_errs,
+        "x": mod.x,
+        "lam": lam[: mod.opt_c],
+    }
+
+    return res
+
+
+def distribute_map_cv(args):
+    y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
+
+    mod = MapCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+    start = time.time()
+    mod.compute_cv_errs(verbose=False)
+    mod.map()
+    end = time.time()
+
+    res = {
+        "sample_id": sample_id,
+        "absorbance": mod.absorbance,
+        "time": end - start,
+        "opt_sigma": mod.opt_sigma,
         "opt_tau": mod.opt_tau,
         "opt_c": mod.opt_c,
         "cv_errs": mod.cv_errs,
