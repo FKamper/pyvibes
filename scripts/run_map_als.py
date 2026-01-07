@@ -13,7 +13,7 @@ from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics
 if __name__ == "__main__":
     REPO_ROOT = Path(__file__).resolve().parents[1]
     PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "teflon"
-    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "map" / "pb"
+    CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections" / "teflon" / "map" / "als"
     GT_DIR = REPO_ROOT / "data" / "spectrabase" / "teflon"
     LAB_DIR = REPO_ROOT / "data" / "raw" / "teflon" / "laboratory_samples"
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     chat_cv = loo_pca(Z)[1]
     mu, lam, _, W = pca(Z)
-    loss = "PB"
+    loss = "ALS"
     print(f"OSE-LOOCV estimate: {chat_cv}")
 
     print("\n==================== PFTE ====================\n")

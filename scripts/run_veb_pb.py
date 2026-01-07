@@ -96,22 +96,27 @@ if __name__ == "__main__":
 
     corr_metrics["sigma"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
-    print("\n")
+    try:
+        with open(CORRECTIONS_DIR / "loo_blanks_sigma.pkl", "rb") as f:
+            corrections_dict = pickle.load(f)
 
-    corrections_dict = []
+    except:
+        print("\n")
 
-    for i in tqdm(
-        range(Z.shape[0]),
-        desc="LOO Blanks",
-    ):
-        y = Z[i, :]
-        Zloo = np.delete(Z, i, axis=0)
-        loo_chat_cv = loo_pca(Zloo)[1]
-        mu_loo, _, _, W_loo = pca(Zloo)
-        W_loo = W_loo[:, :loo_chat_cv]
+        corrections_dict = []
 
-        args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
-        corrections_dict.append(distribute_veb(args))
+        for i in tqdm(
+            range(Z.shape[0]),
+            desc="LOO Blanks",
+        ):
+            y = Z[i, :]
+            Zloo = np.delete(Z, i, axis=0)
+            loo_chat_cv = loo_pca(Zloo)[1]
+            mu_loo, _, _, W_loo = pca(Zloo)
+            W_loo = W_loo[:, :loo_chat_cv]
+
+            args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
+            corrections_dict.append(distribute_veb(args))
 
     with open(CORRECTIONS_DIR / "loo_blanks_sigma.pkl", "wb") as f:
         pickle.dump(corrections_dict, f)
@@ -166,23 +171,28 @@ if __name__ == "__main__":
 
     corr_metrics["sigma_tau"] = compute_correlation_metrics(ref_dict, corrections_dict)
 
-    corrections_dict = []
+    try:
+        with open(CORRECTIONS_DIR / "loo_blanks_sigma_tau.pkl", "rb") as f:
+            corrections_dict = pickle.load(f)
 
-    for i in tqdm(
-        range(Z.shape[0]),
-        desc="LOO Blanks",
-    ):
-        y = Z[i, :]
-        Zloo = np.delete(Z, i, axis=0)
-        loo_chat_cv = loo_pca(Zloo)[1]
-        mu_loo, _, _, W_loo = pca(Zloo)
-        W_loo = W_loo[:, :loo_chat_cv]
+    except:
+        corrections_dict = []
 
-        args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
-        corrections_dict.append(distribute_veb(args))
+        for i in tqdm(
+            range(Z.shape[0]),
+            desc="LOO Blanks",
+        ):
+            y = Z[i, :]
+            Zloo = np.delete(Z, i, axis=0)
+            loo_chat_cv = loo_pca(Zloo)[1]
+            mu_loo, _, _, W_loo = pca(Zloo)
+            W_loo = W_loo[:, :loo_chat_cv]
 
-    with open(CORRECTIONS_DIR / "loo_blanks_sigma_tau.pkl", "wb") as f:
-        pickle.dump(corrections_dict, f)
+            args = (y, mu_loo, W_loo, tau_min, tau_max, loss, blanks_id[i])
+            corrections_dict.append(distribute_veb(args))
+
+        with open(CORRECTIONS_DIR / "loo_blanks_sigma_tau.pkl", "wb") as f:
+            pickle.dump(corrections_dict, f)
 
     print("\n========== VEB-sigma,tau,c ==========\n")
 

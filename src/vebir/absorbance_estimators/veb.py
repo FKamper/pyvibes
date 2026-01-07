@@ -1,11 +1,11 @@
 import numpy as np
-import cvxpy as cp
 from scipy.special import erf
 from scipy.optimize import minimize
-from sklearn.linear_model import Ridge
 from tqdm import tqdm
 from itertools import product
-from vebir.utils.loss_functions import pinball_loss, als_loss
+from vebir.absorbance_estimators.solvers import map_als, map_pb, pb_loss, als_loss
+
+# from vebir.utils.loss_functions import pinball_loss, als_loss
 
 
 def norm_cdf(z):
@@ -248,55 +248,55 @@ def als_sigma_hat(y, tau, nu, d, mu, W):
     return sigma_hat
 
 
-def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
-    """
-    Computes the MAP interference under the VEB-ALS model.
+# def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
+#     """
+#     Computes the MAP interference under the VEB-ALS model.
 
-    Args:
-    ----------
-    y : np.ndarray
-        Observed spectrum of shape (p,).
-    tau : float
-        Asymmetric loss parameter in (0, 1).
-    nu : np.ndarray
-        Means of the components of the variational approximation of shape (c,).
-    d : np.ndarray
-        Standard deviation of the components of the variational approximation of shape (c,).
-    mu : np.ndarray
-        Mean interference spectrum of shape (p,).
-    W : np.ndarray
-       Leading c scaled right singular vectors from the centered intereference examples
-       of shape (p, c).
-    mit : int, optional
-        Maximum number of iterations. Default is 100.
-    verbose: bool, optional
-        If True, displays progress bar and iteration info. Default is False.
+#     Args:
+#     ----------
+#     y : np.ndarray
+#         Observed spectrum of shape (p,).
+#     tau : float
+#         Asymmetric loss parameter in (0, 1).
+#     nu : np.ndarray
+#         Means of the components of the variational approximation of shape (c,).
+#     d : np.ndarray
+#         Standard deviation of the components of the variational approximation of shape (c,).
+#     mu : np.ndarray
+#         Mean interference spectrum of shape (p,).
+#     W : np.ndarray
+#        Leading c scaled right singular vectors from the centered intereference examples
+#        of shape (p, c).
+#     mit : int, optional
+#         Maximum number of iterations. Default is 100.
+#     verbose: bool, optional
+#         If True, displays progress bar and iteration info. Default is False.
 
-    Returns:
-    ----------
-        tuple:
-            - z (np.ndarray): MAP interference.
-            - coef_ (np.ndarray): MAP latent coefficients.
-    """
-    reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2, solver="svd")
+#     Returns:
+#     ----------
+#         tuple:
+#             - z (np.ndarray): MAP interference.
+#             - coef_ (np.ndarray): MAP latent coefficients.
+#     """
+#     reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2, solver="svd")
 
-    w = np.repeat(tau, y.shape[0])
+#     w = np.repeat(tau, y.shape[0])
 
-    iterator = range(mit)
-    iterator = tqdm(iterator) if verbose else iterator
+#     iterator = range(mit)
+#     iterator = tqdm(iterator) if verbose else iterator
 
-    for i in iterator:
-        reg_mod.fit(W, y - mu, sample_weight=w)
-        z = mu + reg_mod.predict(W)
-        wold = w
-        w = np.repeat(tau, y.shape[0])
-        w[y - z < 0] = 1 - tau
-        if np.all(wold == w):
-            break
-        if verbose:
-            print(i, end=" \r")
+#     for i in iterator:
+#         reg_mod.fit(W, y - mu, sample_weight=w)
+#         z = mu + reg_mod.predict(W)
+#         wold = w
+#         w = np.repeat(tau, y.shape[0])
+#         w[y - z < 0] = 1 - tau
+#         if np.all(wold == w):
+#             break
+#         if verbose:
+#             print(i, end=" \r")
 
-    return z, reg_mod.coef_
+#     return z, reg_mod.coef_
 
 
 def veb_pb_elbo(y, tau, nu, d, mu, W):
@@ -486,47 +486,47 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
     return sigma_hat
 
 
-def pb_map(y, mu, W, tau, sigma, mit=None, verbose=False):
-    """
-    Computes the MAP interference under the VEB-PB model.
+# def pb_map(y, mu, W, tau, sigma, mit=None, verbose=False):
+#     """
+#     Computes the MAP interference under the VEB-PB model.
 
-    Args:
-    ----------
-    y : np.ndarray
-        Observed spectrum of shape (p,).
-    tau : float
-        Asymmetric loss parameter in (0, 1).
-    nu : np.ndarray
-        Means of the components of the variational approximation of shape (c,).
-    d : np.ndarray
-        Standard deviation of the components of the variational approximation of shape (c,).
-    mu : np.ndarray
-        Mean interference spectrum of shape (p,).
-    W : np.ndarray
-       Leading c scaled right singular vectors from the centered intereference examples
-       of shape (p, c).
-    mit : int, optional
-        Maximum number of iterations. Default is 100.
-    verbose: bool, optional
-        If True, displays progress bar and iteration info. Default is False.
+#     Args:
+#     ----------
+#     y : np.ndarray
+#         Observed spectrum of shape (p,).
+#     tau : float
+#         Asymmetric loss parameter in (0, 1).
+#     nu : np.ndarray
+#         Means of the components of the variational approximation of shape (c,).
+#     d : np.ndarray
+#         Standard deviation of the components of the variational approximation of shape (c,).
+#     mu : np.ndarray
+#         Mean interference spectrum of shape (p,).
+#     W : np.ndarray
+#        Leading c scaled right singular vectors from the centered intereference examples
+#        of shape (p, c).
+#     mit : int, optional
+#         Maximum number of iterations. Default is 100.
+#     verbose: bool, optional
+#         If True, displays progress bar and iteration info. Default is False.
 
-    Returns:
-    ----------
-        tuple:
-            - z (np.ndarray): MAP interference.
-            - coef_ (np.ndarray): MAP latent coefficients.
-    """
-    x = cp.Variable(W.shape[1])
-    prob = cp.Problem(
-        cp.Minimize(
-            cp.sum(0.5 * cp.abs(y - mu - W @ x) + (tau - 0.5) * (y - mu - W @ x))
-            + 0.5 * sigma * cp.sum_squares(x)
-        )
-    )
+#     Returns:
+#     ----------
+#         tuple:
+#             - z (np.ndarray): MAP interference.
+#             - coef_ (np.ndarray): MAP latent coefficients.
+#     """
+#     x = cp.Variable(W.shape[1])
+#     prob = cp.Problem(
+#         cp.Minimize(
+#             cp.sum(0.5 * cp.abs(y - mu - W @ x) + (tau - 0.5) * (y - mu - W @ x))
+#             + 0.5 * sigma * cp.sum_squares(x)
+#         )
+#     )
 
-    prob.solve(solver=cp.CLARABEL, verbose=verbose)
+#     prob.solve(solver=cp.CLARABEL, verbose=verbose)
 
-    return mu + W @ x.value, x.value
+#     return mu + W @ x.value, x.value
 
 
 class VEB:
@@ -600,12 +600,12 @@ class VEB:
         if loss == "ALS":
             self.optim_prep = veb_als_optim_prep
             self.comp_sigma_hat = als_sigma_hat
-            self.comp_map = als_map
+            self.comp_map = map_als
 
         if loss == "PB":
             self.optim_prep = veb_pb_optim_prep
             self.comp_sigma_hat = pb_sigma_hat
-            self.comp_map = pb_map
+            self.comp_map = map_pb
 
     def fit(self, y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10):
         fun, jac_fun, init, bnds = self.optim_prep(
@@ -662,10 +662,10 @@ class MapCV:
 
         if self.loss == "ALS":
             self.loss_fun = als_loss
-            self.comp_map = als_map
+            self.comp_map = map_als
         if self.loss == "PB":
-            self.loss_fun = pinball_loss
-            self.comp_map = pb_map
+            self.loss_fun = pb_loss
+            self.comp_map = map_pb
 
     def compute_cv_err(self, tau, c, sigma):
         a = np.zeros(self.y.shape[0])

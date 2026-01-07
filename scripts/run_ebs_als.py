@@ -5,7 +5,7 @@ import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.utils.distribute import distribute_ebs
+from vebir.utils.distribute import distribute_blockcv
 from vebir.interference_models.pca import pca, loo_pca
 from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics_to_df
 
@@ -33,6 +33,7 @@ if __name__ == "__main__":
 
     Z = np.array(blanks_dict["2011"])
     wn = np.sort(pd.read_csv(LAB_DIR / "zerofilling.txt", header=None).iloc[:, 0])
+    sigma_grid = [0.0]
 
     chat_cv = loo_pca(Z)[1]
     mu, lam, _, W = pca(Z)
@@ -60,14 +61,14 @@ if __name__ == "__main__":
             Y = np.array(raw_spectra_dict[comp]["raw"])
 
             distribute_args = [
-                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                (y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sid)
                 for y, sid in zip(Y, sample_id)
             ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_blockcv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -112,14 +113,14 @@ if __name__ == "__main__":
             Y = np.array(raw_spectra_dict[comp]["raw"])
 
             distribute_args = [
-                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                (y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sid)
                 for y, sid in zip(Y, sample_id)
             ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_blockcv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -148,6 +149,8 @@ if __name__ == "__main__":
 
     print("\n========== Running CV-c ==========\n")
 
+    c_grid = np.arange(1, 54, 1)
+
     try:
         with open(CORRECTIONS_DIR / "c.pkl", "rb") as f:
             corrections_dict = pickle.load(f)
@@ -155,7 +158,6 @@ if __name__ == "__main__":
 
     except FileNotFoundError:
         tau_grid = [0.1]
-        c_grid = np.arange(1, 53, 1)
 
         corrections_dict = {}
 
@@ -164,14 +166,14 @@ if __name__ == "__main__":
             Y = np.array(raw_spectra_dict[comp]["raw"])
 
             distribute_args = [
-                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                (y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sid)
                 for y, sid in zip(Y, sample_id)
             ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_blockcv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )
@@ -207,7 +209,6 @@ if __name__ == "__main__":
 
     except FileNotFoundError:
         tau_grid = 0.1 * np.power(2.0, np.arange(-2, 3))
-        c_grid = np.arange(1, 53, 1)
 
         corrections_dict = {}
 
@@ -216,14 +217,14 @@ if __name__ == "__main__":
             Y = np.array(raw_spectra_dict[comp]["raw"])
 
             distribute_args = [
-                (y, mu, W, lam, tau_grid, c_grid, loss, sid)
+                (y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sid)
                 for y, sid in zip(Y, sample_id)
             ]
 
             with mp.Pool(processes=mp.cpu_count()) as pool:
                 results = list(
                     tqdm(
-                        pool.imap(distribute_ebs, distribute_args),
+                        pool.imap(distribute_blockcv, distribute_args),
                         total=len(distribute_args),
                         desc=f"{comp}",
                     )

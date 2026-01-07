@@ -1,8 +1,12 @@
 import time
 import numpy as np
-from vebir.absorbance_estimators.veb import VEB, MapCV
-from vebir.absorbance_estimators.ebs import EbsCV
+from vebir.absorbance_estimators.veb import VEB
+
+# , MapCV
+# from vebir.absorbance_estimators.ebs import EbsCV
 from vebir.utils.metrics import compute_latent_KL_divergence
+from vebir.absorbance_estimators.cross_validation import BlockCV
+from vebir.absorbance_estimators.solvers import map_pb, map_als
 
 
 def distribute_veb(args):
@@ -105,36 +109,68 @@ def distribute_veb_c(args):
     return res
 
 
-def distribute_ebs(args):
-    y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
+# def distribute_ebs(args):
+#     y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
 
-    mod = EbsCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+#     mod = EbsCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+#     start = time.time()
+#     mod.compute_cv_errors(verbose=False)
+#     mod.estimate_absorbance()
+#     end = time.time()
+
+#     res = {
+#         "sample_id": sample_id,
+#         "absorbance": mod.absorbance,
+#         "time": end - start,
+#         "opt_tau": mod.opt_tau,
+#         "opt_c": mod.opt_c,
+#         "cv_errs": mod.cv_errs,
+#         "x": mod.x,
+#         "lam": lam[: mod.opt_c],
+#     }
+
+#     return res
+
+
+# def distribute_map_cv(args):
+#     y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
+
+#     mod = MapCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
+#     start = time.time()
+#     mod.compute_cv_errs(verbose=False)
+#     mod.map()
+#     end = time.time()
+
+#     res = {
+#         "sample_id": sample_id,
+#         "absorbance": mod.absorbance,
+#         "time": end - start,
+#         "opt_sigma": mod.opt_sigma,
+#         "opt_tau": mod.opt_tau,
+#         "opt_c": mod.opt_c,
+#         "cv_errs": mod.cv_errs,
+#         "x": mod.x,
+#         "lam": lam[: mod.opt_c],
+#     }
+
+#     return res
+
+
+def distribute_blockcv(args):
+    y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sample_id = args
+
+    mod = BlockCV(
+        total_wavenums=y.shape[0],
+        loss=loss,
+        tau_grid=tau_grid,
+        c_grid=c_grid,
+        sigma_grid=sigma_grid,
+        num_folds=5,
+    )
+
     start = time.time()
-    mod.compute_cv_errors(verbose=False)
-    mod.estimate_absorbance()
-    end = time.time()
-
-    res = {
-        "sample_id": sample_id,
-        "absorbance": mod.absorbance,
-        "time": end - start,
-        "opt_tau": mod.opt_tau,
-        "opt_c": mod.opt_c,
-        "cv_errs": mod.cv_errs,
-        "x": mod.x,
-        "lam": lam[: mod.opt_c],
-    }
-
-    return res
-
-
-def distribute_map_cv(args):
-    y, mu, W, lam, tau_grid, c_grid, loss, sample_id = args
-
-    mod = MapCV(y, mu, W, num_folds=5, tau_grid=tau_grid, c_grid=c_grid, loss=loss)
-    start = time.time()
-    mod.compute_cv_errs(verbose=False)
-    mod.map()
+    mod.compute_cv_errors(y, mu, W, verbose=False)
+    mod.estimate_absorbance(y, mu, W)
     end = time.time()
 
     res = {
@@ -147,6 +183,41 @@ def distribute_map_cv(args):
         "cv_errs": mod.cv_errs,
         "x": mod.x,
         "lam": lam[: mod.opt_c],
+    }
+
+    return res
+
+
+def ref_cor_grid_search(args):
+    y, mu, W, ref_wn, wn, ref_abs, tau_grid, sigma_grid, c_grid, loss, sid = args
+
+    ref_cors = np.zeros([len(tau_grid), len(sigma_grid), len(c_grid)])
+
+    for t in range(len(tau_grid)):
+        for s in range(len(sigma_grid)):
+            for c in range(len(c_grid)):
+                tau = tau_grid[t]
+                sigma = sigma_grid[s]
+                ncomp = c_grid[c]
+
+                if loss == "ALS":
+                    z, _ = map_als(
+                        y, mu, W[:, :ncomp], tau, sigma, mit=100, verbose=False
+                    )
+                if loss == "PB":
+                    z, _ = map_pb(
+                        y, mu, W[:, :ncomp], tau, sigma, mit=100, verbose=False
+                    )
+                a = np.interp(ref_wn, wn, y - z)
+
+                ref_cors[t, s, c] = np.corrcoef(a, ref_abs)[0, 1]
+
+    res = {
+        "sample_id": sid,
+        "ref_cors": ref_cors,
+        "tau_grid": tau_grid,
+        "sigma_grid": sigma_grid,
+        "c_grid": c_grid,
     }
 
     return res

@@ -1,3 +1,24 @@
+"""
+preproc.py
+
+The script preprocesses raw PFTE filter and Airmon spectral data for further analysis. Raw data is read from REPO_ROOT / "data" / "raw"
+processed data is saved to REPO_ROOT / "data" / "preprocessed".
+
+PFTE Preprocessing:
+- Note: The raw spectra data contains interpolated values at certain wavenumbers.
+- Load raw laboratory sample spectra and responses. Responses correspond to areal densities of various compounds.
+- Laboratory sample spectra are downsampled to wavenumbers where measurements were taken.
+- Outliers are removed from the dataset.
+- Load blank filter spectra from multiple sources and standardize them to the same wavenumber grid.
+- Note: The 2011 blank filter spectra correspond to the laboratory samples.
+- Load reference spectra for known compounds from Spectrabase and normalize them.
+
+Airmon Preprocessing:
+-
+
+Author: Francois Kamper
+"""
+
 import os
 import numpy as np
 import pandas as pd
@@ -14,6 +35,8 @@ REF_SPECTRA_DIR = REPO_ROOT / "data" / "spectrabase" / "teflon"
 resp = pd.read_csv(LAB_DIR / "Ruthenburg_FG_std_arealdensity.csv", skiprows=4)
 wn = np.sort(pd.read_csv(LAB_DIR / "zerofilling.txt", header=None).iloc[:, 0])
 compounds = np.unique(resp["compounds"])
+
+print("\n==================== PFTE ====================\n")
 
 print("\n===== Preprocessing Lab Samples =====\n")
 
@@ -220,4 +243,59 @@ ref_dict["levoglucosan"] = spc
 with open(REF_SPECTRA_DIR / "ref_dict.pkl", "wb") as f:
     pickle.dump(ref_dict, f)
 
-print("\n===== Teflon Preprocessing Done  =====\n")
+
+print("*** Done ***")
+
+print("\n==================== AIRMON ====================\n")
+
+RAW_DIR = REPO_ROOT / "data" / "raw" / "airmon"
+PREPROC_DIR = REPO_ROOT / "data" / "preprocessed" / "airmon"
+
+names = [
+    "ambient_measurements",
+    "ammonium_nitrate_calibration",
+    "ammonium_sulphate_calibration",
+    "athens_data",
+    "japan",
+]
+
+cleaned_spectra_dict = {}
+loaded_spectra_dict = {}
+
+
+for name in names:
+    Z = pd.read_csv(
+        RAW_DIR / "cleaned_spectra" / f"{name}_vapor_corrected_cleaned_spectra.csv"
+    ).T
+    Y = pd.read_csv(
+        RAW_DIR / "loaded_spectra" / f"{name}_vapor_corrected_loaded_spectra.csv"
+    ).T
+    wn = Z.loc["wavenumber"].values
+
+    Z.drop("wavenumber", inplace=True)
+    Y.drop("wavenumber", inplace=True)
+
+    Z_na_idx = Z.isna().any(axis=0).to_numpy()
+    Z_valid_wavenumbers_idx = np.where(~Z_na_idx)[0]
+    Y_na_idx = Y.isna().any(axis=0).to_numpy()
+    Y_valid_wavenumbers_idx = np.where(~Y_na_idx)[0]
+
+    valid_wavenumbers_idx = np.intersect1d(
+        Z_valid_wavenumbers_idx, Y_valid_wavenumbers_idx
+    )
+
+    Z = Z.iloc[:, valid_wavenumbers_idx]
+    Z.columns = wn[valid_wavenumbers_idx]
+    Y = Y.iloc[:, valid_wavenumbers_idx]
+    Y.columns = wn[valid_wavenumbers_idx]
+
+    cleaned_spectra_dict[name] = Z
+    loaded_spectra_dict[name] = Y
+
+    print(f"{name} *** Done")
+
+with open(PREPROC_DIR / "cleaned_spectra_dict.pkl", "wb") as f:
+    pickle.dump(cleaned_spectra_dict, f)
+
+with open(PREPROC_DIR / "loaded_spectra_dict.pkl", "wb") as f:
+    pickle.dump(loaded_spectra_dict, f)
