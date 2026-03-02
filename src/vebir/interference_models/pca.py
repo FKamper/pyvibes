@@ -65,7 +65,7 @@ def pca_scan(Z, Zte, max_ncomp=53, detrend=True):
     return np.array(Err)
 
 
-def loo_pca(Z, max_ncomp=53, detrend=True):
+def loo_pca(Z, max_ncomp=None, detrend=True):
     """
     Performs leave-one-out (LOO) cross-validation to select the optimal number of principal components for PCA.
     Parameters:
@@ -79,6 +79,10 @@ def loo_pca(Z, max_ncomp=53, detrend=True):
     Notes:
         This function relies on an external function `pca_scan` to compute the error for a given train/test split and number of components.
     """
+
+    if max_ncomp is None:
+        max_ncomp = Z.shape[0] - 1
+
     Err = []
     for i in range(Z.shape[0]):
         Err.append(
