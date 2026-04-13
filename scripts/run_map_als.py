@@ -5,7 +5,7 @@ import pandas as pd
 
 from pathlib import Path
 from tqdm import tqdm
-from vebir.utils.distribute import distribute_blockcv
+from vebir.utils.help_functions import distribute_blockcv
 from vebir.interference_models.pca import pca, loo_pca
 from vebir.utils.metrics import compute_correlation_metrics, correlation_metrics_to_df
 

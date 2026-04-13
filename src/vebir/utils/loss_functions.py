@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def pinball_loss(a, tau=0.1):
+def pb_loss(a, tau=0.1):
     """
     Compute the component-wise pinball loss values.
 

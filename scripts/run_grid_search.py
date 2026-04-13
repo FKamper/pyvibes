@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from vebir.interference_models.pca import pca
-from vebir.utils.distribute import ref_cor_grid_search
+from vebir.utils.help_functions import ref_cor_grid_search
 
 
 if __name__ == "__main__":

@@ -1,11 +1,7 @@
 import numpy as np
 from scipy.special import erf
 from scipy.optimize import minimize
-from tqdm import tqdm
-from itertools import product
-from vebir.absorbance_estimators.solvers import map_als, map_pb, pb_loss, als_loss
-
-# from vebir.utils.loss_functions import pinball_loss, als_loss
+from vebir.absorbance_estimators.map import MAPEstimator
 
 
 def norm_cdf(z):
@@ -24,7 +20,7 @@ def norm_cdf(z):
 
     Notes
     ----------
-    This function uses the error function `erf` for computation.
+    This function uses `erf` function for computation.
     """
     return 0.5 * (1 + erf(z / np.sqrt(2)))
 
@@ -46,7 +42,7 @@ def norm_pdf(z):
     return np.exp(-0.5 * z**2) / np.sqrt(2 * np.pi)
 
 
-def veb_als_elbo(y, tau, nu, d, mu, W):
+def vibes_als_elbo(y, tau, nu, d, mu, W):
     """
     Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
     iid standard normal random variables, and r of iid random variables distributed according the the Gibbs distribution
@@ -96,7 +92,7 @@ def veb_als_elbo(y, tau, nu, d, mu, W):
     )
 
 
-def veb_als_jac_elbo(y, tau, nu, d, mu, W):
+def vibes_als_jac_elbo(y, tau, nu, d, mu, W):
     """
     Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-ALS model.
 
@@ -155,7 +151,7 @@ def veb_als_jac_elbo(y, tau, nu, d, mu, W):
     return dtau, dnu, dd
 
 
-def veb_als_optim_prep(
+def vibes_als_optim_prep(
     y, tau_init, nu_init, d_init, mu, W, tau_min=1e-5, tau_max=0.25, sd_min=1e-10
 ):
     """
@@ -196,10 +192,10 @@ def veb_als_optim_prep(
     d_slice = slice(1 + c, None)
 
     def fun(pars):
-        return -veb_als_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
+        return -vibes_als_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
 
     def jac_fun(pars):
-        dtau, dnu, dd = veb_als_jac_elbo(
+        dtau, dnu, dd = vibes_als_jac_elbo(
             y, pars[0], pars[nu_slice], pars[d_slice], mu, W
         )
         return -np.concatenate(([dtau], dnu, dd))
@@ -247,59 +243,7 @@ def als_sigma_hat(y, tau, nu, d, mu, W):
 
     return sigma_hat
 
-
-# def als_map(y, mu, W, tau, sigma, mit=100, verbose=False):
-#     """
-#     Computes the MAP interference under the VEB-ALS model.
-
-#     Args:
-#     ----------
-#     y : np.ndarray
-#         Observed spectrum of shape (p,).
-#     tau : float
-#         Asymmetric loss parameter in (0, 1).
-#     nu : np.ndarray
-#         Means of the components of the variational approximation of shape (c,).
-#     d : np.ndarray
-#         Standard deviation of the components of the variational approximation of shape (c,).
-#     mu : np.ndarray
-#         Mean interference spectrum of shape (p,).
-#     W : np.ndarray
-#        Leading c scaled right singular vectors from the centered intereference examples
-#        of shape (p, c).
-#     mit : int, optional
-#         Maximum number of iterations. Default is 100.
-#     verbose: bool, optional
-#         If True, displays progress bar and iteration info. Default is False.
-
-#     Returns:
-#     ----------
-#         tuple:
-#             - z (np.ndarray): MAP interference.
-#             - coef_ (np.ndarray): MAP latent coefficients.
-#     """
-#     reg_mod = Ridge(fit_intercept=False, alpha=sigma / 2, solver="svd")
-
-#     w = np.repeat(tau, y.shape[0])
-
-#     iterator = range(mit)
-#     iterator = tqdm(iterator) if verbose else iterator
-
-#     for i in iterator:
-#         reg_mod.fit(W, y - mu, sample_weight=w)
-#         z = mu + reg_mod.predict(W)
-#         wold = w
-#         w = np.repeat(tau, y.shape[0])
-#         w[y - z < 0] = 1 - tau
-#         if np.all(wold == w):
-#             break
-#         if verbose:
-#             print(i, end=" \r")
-
-#     return z, reg_mod.coef_
-
-
-def veb_pb_elbo(y, tau, nu, d, mu, W):
+def vibes_pb_elbo(y, tau, nu, d, mu, W):
     """
     Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
     iid standard normal random variables, and r of iid random variables distributed according the the Gibbs distribution
@@ -346,7 +290,7 @@ def veb_pb_elbo(y, tau, nu, d, mu, W):
     )
 
 
-def veb_pb_jac_elbo(y, tau, nu, d, mu, W):
+def vibes_pb_jac_elbo(y, tau, nu, d, mu, W):
     """
     Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-PB model.
 
@@ -392,7 +336,7 @@ def veb_pb_jac_elbo(y, tau, nu, d, mu, W):
     return dtau, dnu, dd
 
 
-def veb_pb_optim_prep(
+def vibes_pb_optim_prep(
     y, tau_init, nu_init, d_init, mu, W, tau_min=1e-5, tau_max=0.25, sd_min=1e-10
 ):
     """
@@ -433,10 +377,10 @@ def veb_pb_optim_prep(
     d_slice = slice(1 + c, None)
 
     def fun(pars):
-        return -veb_pb_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
+        return -vibes_pb_elbo(y, pars[0], pars[nu_slice], pars[d_slice], mu, W)
 
     def jac_fun(pars):
-        dtau, dnu, dd = veb_pb_jac_elbo(
+        dtau, dnu, dd = vibes_pb_jac_elbo(
             y, pars[0], pars[nu_slice], pars[d_slice], mu, W
         )
         return -np.concatenate(([dtau], dnu, dd))
@@ -486,57 +430,14 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
     return sigma_hat
 
 
-# def pb_map(y, mu, W, tau, sigma, mit=None, verbose=False):
-#     """
-#     Computes the MAP interference under the VEB-PB model.
-
-#     Args:
-#     ----------
-#     y : np.ndarray
-#         Observed spectrum of shape (p,).
-#     tau : float
-#         Asymmetric loss parameter in (0, 1).
-#     nu : np.ndarray
-#         Means of the components of the variational approximation of shape (c,).
-#     d : np.ndarray
-#         Standard deviation of the components of the variational approximation of shape (c,).
-#     mu : np.ndarray
-#         Mean interference spectrum of shape (p,).
-#     W : np.ndarray
-#        Leading c scaled right singular vectors from the centered intereference examples
-#        of shape (p, c).
-#     mit : int, optional
-#         Maximum number of iterations. Default is 100.
-#     verbose: bool, optional
-#         If True, displays progress bar and iteration info. Default is False.
-
-#     Returns:
-#     ----------
-#         tuple:
-#             - z (np.ndarray): MAP interference.
-#             - coef_ (np.ndarray): MAP latent coefficients.
-#     """
-#     x = cp.Variable(W.shape[1])
-#     prob = cp.Problem(
-#         cp.Minimize(
-#             cp.sum(0.5 * cp.abs(y - mu - W @ x) + (tau - 0.5) * (y - mu - W @ x))
-#             + 0.5 * sigma * cp.sum_squares(x)
-#         )
-#     )
-
-#     prob.solve(solver=cp.CLARABEL, verbose=verbose)
-
-#     return mu + W @ x.value, x.value
-
-
-class VEB:
+class VibeSpec:
     """
-    Variational Empirical Bayes (VEB) model for interference removal.
+    Variational inference for background elimination in spectroscopy (VIBES) model for interference removal.
 
     Args:
     ----------
     c : int
-        Number of components used to model the intereference/
+        Number of components used to model the interference.
     tau_init : float, optional
         Initial value for tau parameter. Defaults to 0.1.
     nu_init : array-like, optional
@@ -598,16 +499,14 @@ class VEB:
             self.d_init = d_init
 
         if loss == "ALS":
-            self.optim_prep = veb_als_optim_prep
+            self.optim_prep = vibes_als_optim_prep
             self.comp_sigma_hat = als_sigma_hat
-            self.comp_map = map_als
 
         if loss == "PB":
-            self.optim_prep = veb_pb_optim_prep
+            self.optim_prep = vibes_pb_optim_prep
             self.comp_sigma_hat = pb_sigma_hat
-            self.comp_map = map_pb
-
-    def fit(self, y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10):
+    
+    def fit(self, y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.5 + 1e-5, sd_min=1e-10):
         fun, jac_fun, init, bnds = self.optim_prep(
             y, self.tau_init, self.nu_init, self.d_init, mu, W, tau_min, tau_max, sd_min
         )
@@ -624,134 +523,35 @@ class VEB:
         self.d = opt.x[t0:]
         self.elbo = -opt.fun
         self.sigma_hat = self.comp_sigma_hat(y, self.tau, self.nu, self.d, mu, W)
+        
+        self.map_solver = MAPEstimator(loss=self.loss, tau=self.tau, sigma=self.sigma_hat)
+        
+        
+   
+        
+# class MAPEstimator:
+#     def __init__(
+#         self,
+#         loss ="PB",
+#         tau = 0.1,
+#         sigma = 0,
+#     ):    
+#         self.loss = loss
+#         self.tau = tau
+#         self.sigma = sigma
+    
+#     def compute_loss(self, a):
+#         if self.loss == "PB":
+#             return  pb_loss(a, tau=self.tau)
+#         elif self.loss == "ALS":
+#             return als_loss(a, tau=self.tau)
+        
+#     def solve(self, y, mu, W, mit=100, verbose=False):
+#         if self.loss == "PB":
+#             return map_pb(y, mu, W, self.tau, self.sigma, mit=mit, verbose=verbose)
+#         elif self.loss == "ALS":
+#             return map_als(y, mu, W, self.tau, self.sigma, mit=mit, verbose=verbose)
+        
 
-    def map(self, y, mu, W, mit=100):
-        self.interference, self.x = self.comp_map(
-            y,
-            mu,
-            W,
-            self.tau,
-            self.sigma_hat,
-            mit,
-            verbose=False,
-        )
-        self.absorbance = y - self.interference
 
 
-class MapCV:
-    def __init__(
-        self,
-        y,
-        mu,
-        W,
-        loss="PB",
-        sigma_init=0.0001,
-        tau_grid=[0.1],
-        c_grid=[10],
-        num_folds=5,
-    ):
-        self.loss = loss
-        self.sigma_init = sigma_init
-        self.num_folds = num_folds
-        self.tau_grid = tau_grid
-        self.c_grid = c_grid
-        self.y = y
-        self.mu = mu
-        self.W = W
-        self.folds = np.array_split(np.arange(y.shape[0]), num_folds)
-
-        if self.loss == "ALS":
-            self.loss_fun = als_loss
-            self.comp_map = map_als
-        if self.loss == "PB":
-            self.loss_fun = pb_loss
-            self.comp_map = map_pb
-
-    def compute_cv_err(self, tau, c, sigma):
-        a = np.zeros(self.y.shape[0])
-        for fold in self.folds:
-            keep_idx = np.concatenate([f for f in self.folds if f is not fold])
-            _, x = self.comp_map(
-                self.y[keep_idx],
-                self.mu[keep_idx],
-                self.W[keep_idx, :c],
-                tau=tau,
-                sigma=sigma,
-            )
-            a[fold] = self.y[fold] - (self.mu[fold] + self.W[fold, :c] @ x)
-
-        return np.sum(self.loss_fun(a, tau=tau))
-
-    def local_searches_sigma(self, tau, c, sigma, mit=100):
-        break_loop = False
-
-        prev_loss_val = self.compute_cv_err(tau, c, sigma)
-        loss_low = self.compute_cv_err(tau, c, sigma / 2)
-        loss_high = self.compute_cv_err(tau, c, sigma * 2)
-
-        prev_sigma = sigma
-        if prev_loss_val <= min(loss_low, loss_high):
-            break_loop = True
-            current_loss_val = prev_loss_val
-        elif loss_low < loss_high:
-            current_loss_val = loss_low
-            sigma /= 2
-        else:
-            current_loss_val = loss_high
-            sigma *= 2
-
-        m = 0
-        while not break_loop:
-            if sigma > prev_sigma:
-                sigma_new = sigma * 2
-            else:
-                sigma_new = sigma / 2
-
-            prev_sigma = sigma
-            prev_loss_val = current_loss_val
-            current_loss_val = self.compute_cv_err(tau, c, sigma_new)
-
-            if current_loss_val < prev_loss_val:
-                sigma = sigma_new
-            else:
-                current_loss_val = prev_loss_val
-                break_loop = True
-
-            m += 1
-            if m == mit:
-                break_loop = True
-
-        return sigma, current_loss_val
-
-    def compute_cv_errs(self, mit=100, verbose=False):
-        self.cv_errs = np.zeros((len(self.tau_grid), len(self.c_grid)))
-        self.best_sigma = np.zeros((len(self.tau_grid), len(self.c_grid)))
-
-        idx_pairs = list(
-            product(range(self.cv_errs.shape[0]), range(self.cv_errs.shape[1]))
-        )
-
-        for i, j in tqdm(idx_pairs, disable=not verbose):
-            sigma, current_loss_val = self.local_searches_sigma(
-                self.tau_grid[i], self.c_grid[j], self.sigma_init, mit=mit
-            )
-
-            self.cv_errs[i, j] = current_loss_val
-            self.best_sigma[i, j] = sigma
-
-        row_idx, col_idx = np.unravel_index(np.argmin(self.cv_errs), self.cv_errs.shape)
-        self.opt_tau = self.tau_grid[row_idx]
-        self.opt_c = self.c_grid[col_idx]
-        self.opt_sigma = self.best_sigma[row_idx, col_idx]
-
-    def map(self, mit=100):
-        self.interference, self.x = self.comp_map(
-            self.y,
-            self.mu,
-            self.W[:, : self.opt_c],
-            self.opt_tau,
-            self.opt_sigma,
-            mit,
-            verbose=False,
-        )
-        self.absorbance = self.y - self.interference
