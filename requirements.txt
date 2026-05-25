@@ -12,3 +12,4 @@ scipy==1.14.1
 ipykernel==6.29.2
 seaborn==0.13.2
 pyarrow==23.0.1
+tqdm==4.67.3
