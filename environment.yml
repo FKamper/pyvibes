@@ -1,4 +1,4 @@
-name: veb-ir-env
+name: vibes-env
 dependencies:
   - python~=3.12.7
   - pip
