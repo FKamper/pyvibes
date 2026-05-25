@@ -4,8 +4,8 @@ import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import pickle
-from vebir.interference_models.pca import pca, loo_pca
-from vebir.utils.help_functions import vibes_help_fun
+from vibes.interference_models.pca import pca, loo_pca
+from vibes.utils.help_functions import vibes_help_fun
 from tqdm import tqdm
 from datetime import datetime
 

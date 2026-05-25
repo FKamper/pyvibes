@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import erf
 from scipy.optimize import minimize
-from vebir.absorbance_estimators.map import MAPEstimator
+from vibes.absorbance_estimators.map import MAPEstimator
 
 
 def norm_cdf(z):

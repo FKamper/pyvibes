@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import product
-from vebir.absorbance_estimators.map import  MAPEstimator
+from vibes.absorbance_estimators.map import  MAPEstimator
 from tqdm import tqdm
 
 

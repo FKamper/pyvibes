@@ -1,6 +1,6 @@
 import numpy as np
-from vebir.absorbance_estimators.vibes import VEB
-from vebir.interference_models.pca import pca
+from vibes.absorbance_estimators.vibes import VEB
+from vibes.interference_models.pca import pca
 from tqdm import tqdm
 
 

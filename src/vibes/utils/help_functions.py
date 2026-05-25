@@ -1,7 +1,7 @@
 import time
 import numpy as np
-from vebir.absorbance_estimators.vibes import VibeSpec
-from vebir.absorbance_estimators.cross_validation import BlockCV
+from vibes.absorbance_estimators.vibes import VibeSpec
+from vibes.absorbance_estimators.cross_validation import BlockCV
 
 def vibes_help_fun(args):
     y, mu, W, tau, c, loss, mit, sample_id = args

@@ -2,7 +2,7 @@ import cvxpy as cp
 import numpy as np
 from sklearn.linear_model import LinearRegression, Ridge
 from tqdm import tqdm
-from vebir.utils.loss_functions import pb_loss, als_loss
+from vibes.utils.loss_functions import pb_loss, als_loss
 
 
 def map_als(y, mu, W, tau, sigma, mit=100, verbose=False):
