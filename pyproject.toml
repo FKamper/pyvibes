@@ -20,7 +20,7 @@ dependencies = [
 dynamic = ["version"]
 
 [tool.setuptools.dynamic]
-version = {attr = "vebir.__version__"}
+version = {attr = "vibes.__version__"}
 
 [tool.ruff]
 extend-include = ["*.ipynb"]

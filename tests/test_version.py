@@ -1,6 +1,6 @@
 import re
 
-from vebir import __version__
+from vibes import __version__
 
 
 SEMVER_REGEX = re.compile(
