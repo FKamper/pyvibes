@@ -22,7 +22,7 @@ def main():
     base_path = f"./data/{pargs.path}"
     vibes_path = os.path.join(base_path, "vibes")
     os.makedirs(vibes_path, exist_ok=True)
-    storage_path = os.path.join(vibes_path, f"{pargs.loss}_c_{pargs.c}_tau_{pargs.tau}_mit_{pargs.mit}.pkl")
+    storage_path = os.path.join(vibes_path, f"{pargs.loss}_c_{pargs.c}_tau_{pargs.tau}.pkl")
     
     if os.path.isfile(storage_path):
         tqdm.write(f"Corrections corresponding {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}; mit={pargs.mit} already exist. Delete to re-run.")

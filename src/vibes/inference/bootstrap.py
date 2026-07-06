@@ -1,5 +1,5 @@
 import numpy as np
-from vibes.absorbance_estimators.vibes import VEB
+from vibes.absorbance_estimators.map import MAPEstimator
 from vibes.interference_models.pca import pca
 from tqdm import tqdm
 
@@ -12,20 +12,17 @@ def bootstrap_sample(Z):
 def pca_bootstrap(y, Z, tau, sigma, c, B=100, loss="PB", verbose=False):
     boot_x = []
     boot_z = []
-    mod = VEB(c=c, loss=loss)
+    map_solver = MAPEstimator(loss= loss, tau = tau, sigma = sigma)
 
     for b in tqdm(range(B), disable=not verbose):
         Zb = bootstrap_sample(Z)
         mub, _, _, Wb = pca(Zb)
         Wb = Wb[:, :c]
+    
+        z , x = map_solver.solve(y, mub, Wb)
 
-        mod.tau = tau
-        mod.sigma_hat = sigma
-
-        mod.map(y, mub, Wb)
-
-        boot_x.append(mod.x)
-        boot_z.append(mod.interference)
+        boot_x.append(x)
+        boot_z.append(z)
 
     boot_x = np.array(boot_x)
     boot_z = np.array(boot_z)

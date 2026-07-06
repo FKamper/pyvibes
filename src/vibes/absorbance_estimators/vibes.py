@@ -525,33 +525,3 @@ class VibeSpec:
         self.sigma_hat = self.comp_sigma_hat(y, self.tau, self.nu, self.d, mu, W)
         
         self.map_solver = MAPEstimator(loss=self.loss, tau=self.tau, sigma=self.sigma_hat)
-        
-        
-   
-        
-# class MAPEstimator:
-#     def __init__(
-#         self,
-#         loss ="PB",
-#         tau = 0.1,
-#         sigma = 0,
-#     ):    
-#         self.loss = loss
-#         self.tau = tau
-#         self.sigma = sigma
-    
-#     def compute_loss(self, a):
-#         if self.loss == "PB":
-#             return  pb_loss(a, tau=self.tau)
-#         elif self.loss == "ALS":
-#             return als_loss(a, tau=self.tau)
-        
-#     def solve(self, y, mu, W, mit=100, verbose=False):
-#         if self.loss == "PB":
-#             return map_pb(y, mu, W, self.tau, self.sigma, mit=mit, verbose=verbose)
-#         elif self.loss == "ALS":
-#             return map_als(y, mu, W, self.tau, self.sigma, mit=mit, verbose=verbose)
-        
-
-
-
