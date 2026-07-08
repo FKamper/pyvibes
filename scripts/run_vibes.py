@@ -16,7 +16,8 @@ def main():
     parser.add_argument("-c", type=str, required=True, help="How to select the number of components for PCA. Can be loo or elbo.")
     parser.add_argument("-tau", type=str, default="0.1", help="How to select the asymmetry parameter for the loss function. Can be a float or elbo.")
     parser.add_argument("-mit", type=int, default=10000, help="Maximum number of iterations for the elbo optimization.")
-    
+    parser.add_argument("-num_cores", type=int, default=0, help="Number of cores to use.")
+
     pargs = parser.parse_args()
     
     base_path = f"./data/{pargs.path}"
@@ -53,10 +54,21 @@ def main():
     else:        
         tau = float(pargs.tau)   
         
-    args = [(Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, pargs.mit, Y.index[i]) for i in range(Y.shape[0])]
+    if pargs.num_cores == 0:
+        num_cores = mp.cpu_count()
+    else:
+        num_cores = pargs.num_cores
 
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        res = list(tqdm(pool.imap(vibes_help_fun, args),total=len(args),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}; mit={pargs.mit}",leave=False,))
+    if num_cores == 1:
+        res = []
+        for i in tqdm(range(Y.shape[0]),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}; mit={pargs.mit}"):
+            args = (Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, pargs.mit, Y.index[i])
+            res.append(vibes_help_fun(args))
+
+    else:
+        args = [(Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, pargs.mit, Y.index[i]) for i in range(Y.shape[0])]
+        with mp.Pool(processes= num_cores) as pool:
+            res = list(tqdm(pool.imap(vibes_help_fun, args),total=len(args),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}; mit={pargs.mit}",leave=False,))
     
     with open(storage_path, "wb") as f:
         pickle.dump(res, f)
