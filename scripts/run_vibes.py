@@ -67,7 +67,7 @@ def main():
 
     else:
         args = [(Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, pargs.mit, Y.index[i]) for i in range(Y.shape[0])]
-        with mp.Pool(processes= num_cores) as pool:
+        with mp.Pool(processes = num_cores) as pool:
             res = list(tqdm(pool.imap(vibes_help_fun, args),total=len(args),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}; mit={pargs.mit}",leave=False,))
     
     with open(storage_path, "wb") as f:
