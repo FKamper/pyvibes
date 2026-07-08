@@ -19,6 +19,7 @@ def main():
     parser.add_argument("-c", type=str, required=True, help="How to select the number of components for PCA. Can be loo or bcv or int. bcv = block cross-validation.")
     parser.add_argument("-tau", type=str, default="0.1", help="How to select the asymmetry parameter for the loss function. Can be a float or bcv. bcv = block cross-validation")
     parser.add_argument("-grid", type=str, default="no", help="Is the call part of a grid search? yes or no.")
+    parser.add_argument("-num_cores", type=int, default=0, help="Number of cores to use.")
     
     pargs = parser.parse_args()
     
@@ -65,10 +66,21 @@ def main():
     else:
         tau = float(pargs.tau) 
 
-    args = [(Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, Y.index[i]) for i in range(Y.shape[0])]
-    
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        res = list(tqdm(pool.imap(ebs_help_fun, args),total=len(args),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}",leave=False,))
+    if pargs.num_cores == 0:
+        num_cores = mp.cpu_count()
+    else:
+        num_cores = pargs.num_cores
+
+    if num_cores == 1:
+        res = []
+        for i in tqdm(range(Y.shape[0]),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}"):
+            args = (Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, Y.index[i])
+            res.append(ebs_help_fun(args))
+
+    else:
+        args = [(Y.iloc[i,:].values, mu, W, tau, c, pargs.loss, Y.index[i]) for i in range(Y.shape[0])]
+        with mp.Pool(processes = num_cores) as pool:
+            res = list(tqdm(pool.imap(ebs_help_fun, args),total=len(args),desc=f"Removing interference with: {pargs.loss} loss; c={pargs.c}; tau={pargs.tau}",leave=False,))
     
     with open(storage_path, "wb") as f:
         pickle.dump(res, f)
