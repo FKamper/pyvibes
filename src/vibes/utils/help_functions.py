@@ -4,6 +4,36 @@ from vibes.absorbance_estimators.vibes import VibeSpec
 from vibes.absorbance_estimators.cross_validation import BlockCV
 
 def vibes_help_fun(args):
+    """
+    Help function to process vibes corrections in the Python Scripts.
+
+    Parameters
+    ----------
+    args : tuple
+        consists of the following in order:
+        y : np.ndarray
+            Input spectrum
+        mu : np.ndarray
+            Mean interference spectrum.
+        W : np.ndarray
+            Right singular vectors obtained from a SVD of the centered interference examples.
+        tau : float
+            Asymmetry parameter.
+        c : int 
+            Number of pca components. If c is None it is estimated by maximization of the ELBO over 
+            a grid.
+        loss : str, optional
+            Loss function to use. Options are "PB" (default) or "ALS".
+        mit : int, optional
+            Maximum number of iterations allowed for L-BFGS-B when maximizing the ELBO.
+        sample_id : str 
+            Identifyer for the sample being analyzed.
+
+    Returns
+    ----------
+    res : dict
+        Dictionary containing the relevant information following the correction procedure.
+    """
     y, mu, W, tau, c, loss, mit, sample_id = args
     
     if tau is not None:
@@ -70,6 +100,34 @@ def vibes_help_fun(args):
     return res
 
 def ebs_help_fun(args):
+    """
+    Help function to process EBS corrections in the Python Scripts.
+
+    Parameters
+    ----------
+    args : tuple
+        consists of the following in order:
+        y : np.ndarray
+            Input spectrum.
+        mu : np.ndarray
+            Mean interference spectrum.
+        W : np.ndarray
+            Right singular vectors obtained from a SVD of the centered interference examples.
+        tau : float
+            Asymmetry parameter.
+        c : int 
+            Number of pca components. If c is None it is estimated by the blocked cross-validation
+            procedure over a grid.
+        loss : str, optional
+            Loss function to use. Options are "PB" (default) or "ALS".
+        sample_id : str 
+            Identifyer for the sample being analyzed.
+
+    Returns
+    ----------
+    res : dict
+        Dictionary containing the relevant information following the correction procedure.
+    """
     y, mu, W, tau, c, loss, sample_id = args
     
     sigma_grid = [0]
@@ -109,6 +167,34 @@ def ebs_help_fun(args):
     return res
 
 def map_help_fun(args):
+    """
+    Help function to process MAP corrections in the Python Scripts.
+
+    Parameters
+    ----------
+    args : tuple
+        consists of the following in order:
+        y : np.ndarray
+            Input spectrum.
+        mu : np.ndarray
+            Mean interference spectrum.
+        W : np.ndarray
+            Right singular vectors obtained from a SVD of the centered interference examples.
+        tau : float
+            Asymmetry parameter.
+        c : int 
+            Number of pca components. If c is None it is estimated by the blocked cross-validation
+            procedure over a grid.
+        loss : str, optional
+            Loss function to use. Options are "PB" (default) or "ALS".
+        sample_id : str 
+            Identifyer for the sample being analyzed.
+
+    Returns
+    ----------
+    res : dict
+        Dictionary containing the relevant information following the correction procedure.
+    """
     y, mu, W, tau, c, loss, sample_id = args
     
     if tau is None:
@@ -144,193 +230,3 @@ def map_help_fun(args):
     }
 
     return res
-
-# def fun(args):
-#     y, mu, W, tau, loss, sample_id = args
-    
-#     est = MAPEstimator(loss=loss, tau=tau, sigma=0)
-#     start = time.time()
-#     z,x = est.solve(y, mu, W, mit=100, verbose=False)
-#     end = time.time()
-
-#     res = {
-#         "sample_id": sample_id,
-#         "absorbance": y-z,
-#         "time": end - start,
-#         "sigma": 0,
-#         "tau":tau,
-#         "c": W.shape[1],
-#         "x": x,
-#     }
-
-#     return res
-
-# mod = BlockCV(total_wavenums=y.shape[0], tau_grid=tau_grid,c_grid=c_grid,sigma_grid=[sigma],)
-# 
-# 
-
-# def distribute_veb(args):
-#     y, mu, W, tau_min, tau_max, loss, sample_id = args
-
-#     mod = VEB(c=W.shape[1], loss=loss)
-#     start = time.time()
-#     mod.fit(y, mu, W, tau_min=tau_min, tau_max=tau_max)
-#     mod.map(y, mu, W)
-#     end = time.time()
-
-#     KL_components = compute_latent_KL_divergence(mod.nu, mod.d)
-#     mean_KL = np.mean(KL_components)
-#     mean_mdist = np.mean(mod.x**2)
-#     zstats = mod.nu / mod.d
-
-#     res = {
-#         "sample_id": sample_id,
-#         "absorbance": mod.absorbance,
-#         "time": end - start,
-#         "tau": mod.tau,
-#         "c": mod.c,
-#         "sigma_hat": mod.sigma_hat,
-#         "nu": mod.nu,
-#         "d": mod.d,
-#         "x": mod.x,
-#         "KL_components": KL_components,
-#         "mean_KL": mean_KL,
-#         "mean_mdist": mean_mdist,
-#         "zstats": zstats,
-#     }
-
-#     return res
-
-
-# def distribute_veb_c(args):
-#     y, mu, W, tau_min, tau_max, loss, c_grid, mit, sample_id = args
-
-#     start = time.time()
-#     mod = VEB(c=c_grid[0], loss=loss)
-#     elbos = []
-
-#     for i in range(len(c_grid)):
-#         c = c_grid[i]
-#         mod.c = c
-#         mod.fit(y, mu, W[:, :c], mit=mit, tau_min=tau_min, tau_max=tau_max)
-#         elbos.append(mod.elbo)
-
-#         if elbos[-1] == np.max(elbos):
-#             tau_init = mod.tau
-#             chat = c
-#             nu_init = mod.nu
-#             d_init = mod.d
-
-#         if i == len(c_grid) - 1:
-#             break
-
-#         mod.tau_init = mod.tau
-#         mod.nu_init = np.append(mod.nu_init, np.zeros(c_grid[i + 1] - c))
-#         mod.d_init = np.append(mod.d_init, np.ones(c_grid[i + 1] - c))
-
-#     mod = VEB(
-#         c=chat,
-#         tau_init=tau_init,
-#         nu_init=nu_init,
-#         d_init=d_init,
-#         loss=loss,
-#     )
-#     mod.fit(
-#         y,
-#         mu,
-#         W[:, :chat],
-#         tau_min=tau_min,
-#         tau_max=tau_max,
-#     )
-#     mod.map(y, mu, W[:, :chat])
-#     end = time.time()
-
-#     KL_components = compute_latent_KL_divergence(mod.nu, mod.d)
-#     mean_KL = np.mean(KL_components)
-#     mean_mdist = np.mean(mod.x**2)
-#     zstats = mod.nu / mod.d
-
-#     res = {
-#         "sample_id": sample_id,
-#         "absorbance": mod.absorbance,
-#         "time": end - start,
-#         "tau": mod.tau,
-#         "c": mod.c,
-#         "sigma_hat": mod.sigma_hat,
-#         "nu": mod.nu,
-#         "d": mod.d,
-#         "x": mod.x,
-#         "KL_components": KL_components,
-#         "mean_KL": mean_KL,
-#         "mean_mdist": mean_mdist,
-#         "zstats": zstats,
-#     }
-
-#     return res
-
-
-# def distribute_blockcv(args):
-#     y, mu, W, lam, tau_grid, c_grid, sigma_grid, loss, sample_id = args
-
-#     mod = BlockCV(
-#         total_wavenums=y.shape[0],
-#         loss=loss,
-#         tau_grid=tau_grid,
-#         c_grid=c_grid,
-#         sigma_grid=sigma_grid,
-#         num_folds=5,
-#     )
-
-#     start = time.time()
-#     mod.compute_cv_errors(y, mu, W, verbose=False)
-#     mod.estimate_absorbance(y, mu, W)
-#     end = time.time()
-
-#     res = {
-#         "sample_id": sample_id,
-#         "absorbance": mod.absorbance,
-#         "time": end - start,
-#         "opt_sigma": mod.opt_sigma,
-#         "opt_tau": mod.opt_tau,
-#         "opt_c": mod.opt_c,
-#         "cv_errs": mod.cv_errs,
-#         "x": mod.x,
-#         "lam": lam[: mod.opt_c],
-#     }
-
-#     return res
-
-
-# def ref_cor_grid_search(args):
-#     y, mu, W, ref_wn, wn, ref_abs, tau_grid, sigma_grid, c_grid, loss, sid = args
-
-#     ref_cors = np.zeros([len(tau_grid), len(sigma_grid), len(c_grid)])
-
-#     for t in range(len(tau_grid)):
-#         for s in range(len(sigma_grid)):
-#             for c in range(len(c_grid)):
-#                 tau = tau_grid[t]
-#                 sigma = sigma_grid[s]
-#                 ncomp = c_grid[c]
-
-#                 if loss == "ALS":
-#                     z, _ = map_als(
-#                         y, mu, W[:, :ncomp], tau, sigma, mit=100, verbose=False
-#                     )
-#                 if loss == "PB":
-#                     z, _ = map_pb(
-#                         y, mu, W[:, :ncomp], tau, sigma, mit=100, verbose=False
-#                     )
-#                 a = np.interp(ref_wn, wn, y - z)
-
-#                 ref_cors[t, s, c] = np.corrcoef(a, ref_abs)[0, 1]
-
-#     res = {
-#         "sample_id": sid,
-#         "ref_cors": ref_cors,
-#         "tau_grid": tau_grid,
-#         "sigma_grid": sigma_grid,
-#         "c_grid": c_grid,
-#     }
-
-#     return res
