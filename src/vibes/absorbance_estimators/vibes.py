@@ -20,7 +20,7 @@ def norm_cdf(z):
 
     Notes
     ----------
-    This function uses `erf` function for computation.
+    This function uses the `erf` function for computation.
     """
     return 0.5 * (1 + erf(z / np.sqrt(2)))
 
@@ -44,17 +44,16 @@ def norm_pdf(z):
 
 def vibes_als_elbo(y, tau, nu, d, mu, W):
     """
-    Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
-    iid standard normal random variables, and r of iid random variables distributed according the the Gibbs distribution
-    associated with the asymmetrically weighted least squares loss. The variational approximation for x|y consists of
-    independent, but not identical, normal random variables.
+    Computes the Evidence Lower Bound (ELBO) for the model y = mu + Wx + a, where x consists of iid standard normal random variables,
+    and a of iid random variables distributed according the the Gibbs distribution corresponding to the asymmetrically weighted 
+    least squares (ALS) loss. The variational approximation for x|y consists of independent, but not identical, normal random variables.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -62,8 +61,8 @@ def vibes_als_elbo(y, tau, nu, d, mu, W):
     mu : np.ndarray
         Mean interference spectrum of shape (p,).
     W : np.ndarray
-       Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
-       of shape (p, c).
+        Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
+        of shape (p, c).
     Returns
     ----------
     float
@@ -94,14 +93,14 @@ def vibes_als_elbo(y, tau, nu, d, mu, W):
 
 def vibes_als_jac_elbo(y, tau, nu, d, mu, W):
     """
-    Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-ALS model.
+    Computes the gradients (Jacobian) of tau and the variational parameters in vibes_als_elbo.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -109,8 +108,8 @@ def vibes_als_jac_elbo(y, tau, nu, d, mu, W):
     mu : np.ndarray
         Mean interference spectrum of shape (p,).
     W : np.ndarray
-       Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
-       of shape (p, c).
+        Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
+        of shape (p, c).
     Returns
     ----------
     dtau : float
@@ -156,14 +155,14 @@ def vibes_als_optim_prep(
 ):
     """
     Prepares the objective function, its Jacobian, initial parameters, and bounds for optimization
-    of the VEB-ALS model.
+    of the vibes_als_elbo function w.r.t. tau and the variational parameters.
 
     Args:
     ----------
         y : np.ndarray
             Observed spectrum of shape (p,).
         tau_init : float
-            Starting value for the asymmetric loss parameter in (0, 1).
+            Starting value for the asymmetry parameter in (0, 1).
         nu_init : np.ndarray
             Intitial values for the means of the components of the variational approximation of shape (c,).
         d_init : np.ndarray
@@ -208,15 +207,15 @@ def vibes_als_optim_prep(
 
 def als_sigma_hat(y, tau, nu, d, mu, W):
     """
-    Computes the estimated scaling parameter (sigma_hat) of the Gibbs distribution
-    associated with the asymmetrically weighted least squares loss.
+    Computes the estimated temperature parameter (sigma_hat) of the Gibbs distribution
+    corresponding to the ALS loss.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry loss parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -245,17 +244,16 @@ def als_sigma_hat(y, tau, nu, d, mu, W):
 
 def vibes_pb_elbo(y, tau, nu, d, mu, W):
     """
-    Computes the Evidence Lower Bound (ELBO) to the model evidence for the model y = mu + Wx + r, where x consists of
-    iid standard normal random variables, and r of iid random variables distributed according the the Gibbs distribution
-    associated with the pinball loss. The variational approximation for x|y consists of
-    independent, but not identical, normal random variables.
+    Computes the ELBO for the model y = mu + Wx + a, where x consists of iid standard normal random variables, and a of iid 
+    random variables distributed according the the Gibbs distribution corresponding to the pinball (PB) loss. The variational 
+    approximation for x|y consists of independent, but not identical, normal random variables.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -263,8 +261,8 @@ def vibes_pb_elbo(y, tau, nu, d, mu, W):
     mu : np.ndarray
         Mean interference spectrum of shape (p,).
     W : np.ndarray
-       Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
-       of shape (p, c).
+        Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
+        of shape (p, c).
     Returns
     ----------
     float
@@ -292,14 +290,14 @@ def vibes_pb_elbo(y, tau, nu, d, mu, W):
 
 def vibes_pb_jac_elbo(y, tau, nu, d, mu, W):
     """
-    Computes the gradients (Jacobian) of the ELBO (Evidence Lower Bound) for the VEB-PB model.
+    Computes the gradients (Jacobian) of tau and the variational parameters in vibes_pb_elbo.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -307,8 +305,8 @@ def vibes_pb_jac_elbo(y, tau, nu, d, mu, W):
     mu : np.ndarray
         Mean interference spectrum of shape (p,).
     W : np.ndarray
-       Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
-       of shape (p, c).
+        Leading c scaled right singular vectors obtained from a SVD of the centered intereference examples
+        of shape (p, c).
     Returns
     ----------
     dtau : float
@@ -341,14 +339,14 @@ def vibes_pb_optim_prep(
 ):
     """
     Prepares the objective function, its Jacobian, initial parameters, and bounds for optimization
-    of the VEB-PB model.
+    of the vibes_pb_elbo function w.r.t. tau and the variational parameters.
 
     Args:
     ----------
         y : np.ndarray
             Observed spectrum of shape (p,).
         tau_init : float
-            Starting value for the asymmetric loss parameter in (0, 1).
+            Starting value for the asymmetry parameter in (0, 1).
         nu_init : np.ndarray
             Intitial values for the means of the components of the variational approximation of shape (c,).
         d_init : np.ndarray
@@ -393,15 +391,15 @@ def vibes_pb_optim_prep(
 
 def pb_sigma_hat(y, tau, nu, d, mu, W):
     """
-    Computes the estimated scaling parameter (sigma_hat) of the Gibbs distribution
-    associated with the pinball loss.
+    Computes the estimated temperature parameter (sigma_hat) of the Gibbs distribution
+    corresponding to the PB loss.
 
     Args:
     ----------
     y : np.ndarray
         Observed spectrum of shape (p,).
     tau : float
-        Asymmetric loss parameter in (0, 1).
+        Asymmetry loss parameter in (0, 1).
     nu : np.ndarray
         Means of the components of the variational approximation of shape (c,).
     d : np.ndarray
@@ -409,8 +407,8 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
     mu : np.ndarray
         Mean interference spectrum of shape (p,).
     W : np.ndarray
-       Leading c scaled right singular vectors from the centered intereference examples
-       of shape (p, c).
+        Leading c scaled right singular vectors from the centered intereference examples
+        of shape (p, c).
 
     Returns
     ----------
@@ -432,14 +430,17 @@ def pb_sigma_hat(y, tau, nu, d, mu, W):
 
 class VibeSpec:
     """
-    Variational inference for background elimination in spectroscopy (VIBES) model for interference removal.
+    Variational inference for background elimination in spectroscopy (VIBES). 
+    
+    Calibrates the hyper-parameters of the probalistic model by maximizing the 
+    ELBO and initializes the corresponding MAP solver.
 
     Args:
     ----------
     c : int
-        Number of components used to model the interference.
+        Number of components in the interference PCA model.
     tau_init : float, optional
-        Initial value for tau parameter. Defaults to 0.1.
+        Initial value for asymmetry parameter. Defaults to 0.1.
     nu_init : array-like, optional
         Initial values for nu parameter. Defaults to zeros of length `c`.
     d_init : array-like, optional
@@ -450,26 +451,20 @@ class VibeSpec:
     Attributes
     ----------
     tau : float
-        Estimated asymmetric loss parameter.
+        Estimated asymmetry parameter.
     nu : array-like
         Estimated means of the variational approximation.
     d : array-like
         Estimated standard deviations of the variational approximation.
     sigma_hat : array-like
-        Estimated scaling value of the Gibbs distribution.
-    interference : array-like
-        MAP interference.
-    x : array-like
-        MAP latent coefficients.
-    absorbance : array-like
-        MAP absorbance after interference removal.
+        Estimated temperature parameter of the Gibbs distribution.
+    map_solver : MAPEstimator
+        Solver initialized with the calibrated tau and sigma_hat parameters.
 
     Methods
     -------
-    fit(y, mu, W, mit=20000, tau_min=1e-5, tau_max=0.25, sd_min=1e-10)
-        Fit the VEB model to the data.
-    map(y, mu, W, mit)
-        Compute the interference and absorbance using the fitted model.
+    fit(self, y, mu, W, mit=10000, tau_min=1e-5, tau_max=0.5 + 1e-5, sd_min=1e-10)
+        Calibrate hyper parameters by maximization of the ELBO.
     """
 
     def __init__(
