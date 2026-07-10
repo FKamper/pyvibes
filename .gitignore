@@ -15,3 +15,4 @@ data/
 plots/
 archive/
 scripts/run_grid.py
+notebooks/process_results.ipynb
