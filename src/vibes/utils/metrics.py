@@ -24,7 +24,6 @@ def compute_correlation_metrics(ref_dict, corrections_dict):
 
     return metrics
 
-
 def correlation_metrics_to_df(corr_metrics):
     df = copy.deepcopy(corr_metrics)
 

@@ -8,7 +8,6 @@ def bootstrap_sample(Z):
     idx = np.random.choice(Z.shape[0], size=Z.shape[0], replace=True)
     return Z[idx]
 
-
 def pca_bootstrap(y, Z, tau, sigma, c, B=100, loss="PB", verbose=False):
     boot_x = []
     boot_z = []
