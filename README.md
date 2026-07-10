@@ -1,19 +1,11 @@
-# chemspec
+# Variational Inference for Background Elimination in Spectroscopy (VIBES)
 
-This project is made using [this template](https://github.com/sdsc-innovation/cookiecutter-python).
-Next steps include:
-
- - [x] Create project from the Cookiecutter template.
- - [ ] Create a virtual environment to work in an isolated Python installation.
- - [ ] Install [pre-commit](https://pre-commit.com/) hooks.
- - [ ] Keep either `.gitlab-ci.yml` or `.github`, according to your Git hosting platform.
- - [ ] Update `authors` and `description`, in `pyproject.toml`.
- - [ ] `requirements.txt` should contain the *exact* (a.k.a. pinned) versions of the dependencies used development, including tools. However, do not include indirect dependencies.
- - [ ] Add installation dependencies in `pyproject.toml`, with permissive version constraints.
- - [ ] Add a `LICENSE` file, if applicable. This is *highly recommended* if the project is open source.
- - [ ] Add a [`CITATION.cff`](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files), to ease citation of your work.
- - [ ] Replace this `README.md` with a proper one. Among others, it must explain the overall context, the installation instructions, a quick start guide, and a repository structure description.
-
+This repository contains code for removing interferences from substrates, matrices, and instrumental artifacts in mid-infrared (IR)
+spectra using a probabilistic approach. In this approach background contributions are modeled using a PCA analysis of interference 
+examples while analyte signals are represented by a Gibbs distribution associated with a specified loss function. The parameters 
+of the model is automatically calibrated to an observed spectrum using approximate maximum likelihood estimation enabled by 
+variational inference. Consequentially, we refer to this approach as variational inference for background elimination in 
+spectroscopy (VIBES). The repository also contains code for alternative correction procedures.
 
 ## Installation
 
@@ -29,29 +21,22 @@ If you are using Conda to manage your Python environments:
 conda env create -f environment.yml
 ```
 
-Alternatively, if you are using an existing environment, you can install the module in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html), which includes only minimal dependencies:
+## Repository structure
+    * /data - the python scripts target data inside this folder. 
+    * /notebooks - folder containing notebooks. Currently only contains illustration.ipynb.
+    * /scripts - Python scripts for generating the results of the paper.
+    * /src - Python module.
 
-```
-pip install -e .
-```
+## Getting started
 
+### Quickstart 
 
-## Development tools
+After installation we recommend working through the notebook illustration.ipynb. This notebook illustrates the core functionalities of 
+the repository with synthetic data examples.
 
-In order to use [pre-commit](https://pre-commit.com/) hooks, they need to be registered:
+### Using the python scripts
 
-```
-pre-commit install
-```
-
-It is a good practice to manually invoke hooks after installation, just in case:
-
-```
-pre-commit run --all-files
-```
-
-Unit tests (using [pytest](https://pytest.org/)) are not executed as a pre-commit hook, to keep the overhead to a minimum. Instead, a CI/CD pipeline is configured to run tests after each commit. You can also execute them locally, manually:
-
-```
-pytest
-```
+To correct a batch of spectra one needs to create a subfolder inside /data containing two files namely spectra.parquet and blanks.parquet. 
+The former contains the spectra which are to be corrected as rows while the latter contains interference examples. For the former, the 
+index should contain identifyers for the rows (spectra). The Python scripts can than be called targeting this folder. The ouput of the scripts 
+are dictionaries containing information about the corrections performed and is stored inside the same folder containing the data. 
