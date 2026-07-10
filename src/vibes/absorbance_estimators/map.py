@@ -6,6 +6,41 @@ from vibes.utils.loss_functions import pb_loss, als_loss
 
 
 def map_als(y, mu, W, tau, sigma, mit=100, verbose=False):
+    """
+    Computes the maximum a posteriori (MAP) solution for the interference scores according to the probabilistic model 
+    under the asymmetrically weighted least squares loss and estimates the interference.
+
+    Args:
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+        Leading c scaled right singular vectors from the centered intereference examples
+        of shape (p, c).
+    tau : float
+        Asymmetry loss parameter in (0, 1).
+    sigma: float
+        Temperature parameter of Gibbs distribution.
+    mit: int, optional
+        Maximum number of allowable iterations. Default is 100.
+    verbose: bool, optional
+        Should progress be printed? Default is False.
+
+    Returns
+    ----------
+    z : numpy.ndarray of float
+        Estimated interference.
+    x : numpy.ndarray of float
+        Scores used to reconstruct the estimated interference.
+
+    Notes
+    ----------
+    1. The sigma = 0 case corresponds to EBS.
+    2. Estimation is done by iterative applying linear regression or ridge with observational weightes.
+    3. Observational weights are updated following each iteration.
+    """
     if sigma == 0:
         reg_mod = LinearRegression(fit_intercept=False)
 
@@ -34,6 +69,40 @@ def map_als(y, mu, W, tau, sigma, mit=100, verbose=False):
 
 
 def map_pb(y, mu, W, tau, sigma, mit=100, verbose=False):
+    """
+    Computes the maximum a posteriori (MAP) solution for the interference scores according to the probabilistic model 
+    under the pinball loss and estimates the interference.
+
+    Args:
+    ----------
+    y : np.ndarray
+        Observed spectrum of shape (p,).
+    mu : np.ndarray
+        Mean interference spectrum of shape (p,).
+    W : np.ndarray
+        Leading c scaled right singular vectors from the centered intereference examples
+        of shape (p, c).
+    tau : float
+        Asymmetry loss parameter in (0, 1).
+    sigma: float
+        Temperature parameter of Gibbs distribution.
+    mit: int 
+        Ignored. Included for convenience and consistency with related function calls.
+    verbose: bool, optional
+        Should progress be printed? Default is False.
+
+    Returns
+    ----------
+    z : numpy.ndarray of float
+        Estimated interference.
+    x : numpy.ndarray of float
+        Scores used to reconstruct the estimated interference.
+
+    Notes
+    ----------
+    1. The sigma = 0 case corresponds to EBS.
+    2. Estimation is done using cvx.
+    """
     x = cp.Variable(W.shape[1])
 
     if sigma == 0:
@@ -58,6 +127,37 @@ def map_pb(y, mu, W, tau, sigma, mit=100, verbose=False):
 
 
 class MAPEstimator:
+    """
+    Convenience class for working with the ALS and PB solvers.
+
+    Args:
+    ----------
+    loss : str, optional
+        Loss function to use. Options are "PB" (default) or "ALS".
+    tau : float, optional
+        Asymmetry parameter. Default is 0.1.
+    sigma : list of float, optional
+        Temperature / regularization parameter. Default is 0 which corresponds to EBS.
+    
+
+    Attributes
+    ----------
+    loss : str
+        Provided loss function.
+    tau : float
+        Provided asymmetry parameter.
+    sigma : float
+        Provided temperature / regularization parameter.
+
+    Methods
+    -------
+    compute_loss(self, a)
+        Computes the loss assocaited with measured absorbances a.
+
+    solve(self, y, mu, W, mit=100, verbose=False)
+        Applies the initialized solver in order to estimate the interference and scores
+        for a given set of inputs.
+    """
     def __init__(
         self,
         loss ="PB",

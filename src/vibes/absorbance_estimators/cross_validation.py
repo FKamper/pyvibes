@@ -57,7 +57,7 @@ class BlockCV:
     -------
     compute_cv_errors(self, y, mu, W, verbose=False)
         Compute the cross-validation errors over the supplied grids and initialize 
-        the solver with the hyper parameters with the smallest error.
+        the solver with the hyper parameters corresponding to the smallest error.
     """
     def __init__(
         self,
