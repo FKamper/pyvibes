@@ -1,3 +1,20 @@
+"""
+Script to remove interference from a set of observed spectra using MAP.
+
+Example usage (should be run from repo root): 
+python ./scripts/run_map.py -loss PB -path pfte/laboratory -c bcv -tau bcv
+
+Notes:
+1. command-line arguments are for the loss function, path to the folder containing the data, method to select the number of components,
+   method to determine the asymmetry parameter, indicator if the script is called as part of a grid search and the number of cores to use. 
+2. The folder containing the data should be a subfolder in repo_root/data and contain the files spectra.parquet and blanks.parquet.
+3. spectra.parquet contains the spectra from which to remove the interference as rows with the index containing identifyers. 
+4. blanks.parquet should contain the interference examples as rows.
+5. MAP is then deployed on the specra contained in the folder under the provided settings.
+6. c = loo instructs the script to estimate the number of components used to model the interference using leave-one-out cross validation. 
+   c = bcv means that the number of components are selected using blocked cross validation (bcv).
+7. tau = bcv means that the asymmetry parameter is selected by blocked cross validation, otherwise it is kept fixed at a supplied value.
+"""
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"

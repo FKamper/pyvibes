@@ -1,3 +1,20 @@
+"""
+Script to remove interference from a set of observed spectra using vibes.
+
+Example usage (should be run from repo root): 
+python ./scripts/run_vibes.py -loss PB -path pfte/laboratory -c elbo -tau elbo
+
+Notes:
+1. command-line arguments are for the loss function, path to the folder containing the data, method to select the number of components,
+   method to determine the asymmetry parameter, maximum number of iterations for L-BFGS-B and the number of cores to use. 
+2. The folder containing the data should be a subfolder in repo_root/data and contain the files spectra.parquet and blanks.parquet.
+3. spectra.parquet contains the spectra from which to remove the interference as rows with the index containing identifyers. 
+4. blanks.parquet should contain the interference examples as rows.
+5. Vibes is then deployed on the specra contained in the folder under the provided settings.
+6. c = loo instructs the script to estimate the number of components used to model the interference using leave-one-out cross validation. 
+   c = elbo means that the number of components are selected as the value of c maximimzing the elbo over a grid.
+7. tau = elbo means that the asymmetry parameter is selected by maximizing the elbo, otherwise it is kept fixed at a supplied value.
+"""
 import os
 import argparse
 import pandas as pd
