@@ -1,11 +1,11 @@
-# Variational Inference for Background Elimination in Spectroscopy (VIBES)
+# Variational-Inference-based Background Elimination in Spectroscopy (VIBES)
 
 This repository contains code for removing interferences from substrates, matrices, and instrumental artifacts in mid-infrared (IR)
 spectra using a probabilistic approach. In this approach background contributions are modeled using a PCA analysis of interference 
 examples while analyte signals are represented by a Gibbs distribution associated with a specified loss function. The parameters 
-of the model is automatically calibrated to an observed spectrum using approximate maximum likelihood estimation enabled by 
-variational inference. Consequentially, we refer to this approach as variational inference for background elimination in 
-spectroscopy (VIBES). The repository also contains code for alternative correction procedures.
+of the model is automatically calibrated to a spectrum using approximate maximum likelihood estimation enabled by an
+variational approximation. Consequentially, we refer to this approach as Variational-Inference-based Background Elimination in Spectroscopy (VIBES).
+The repository also contains code for alternative correction procedures.
 
 ## Installation
 

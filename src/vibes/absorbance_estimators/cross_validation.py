@@ -9,13 +9,13 @@ class BlockCV:
     Blocked cross-validation procedure for hyper-parameter calibration. 
     
     An input spectrum is divided into a number of contiguous blocks and the interference inside each block is 
-    reconstructed using the interference scores estimated from other blocks. The corresponding reconstructions
+    reconstructed using the latent interference variables estimated from other blocks. The corresponding reconstructions
     for each block are stacked to form the cross-validated interference and used to extract the cross-validated 
     absorbance. The error is measured by applying the loss function provided to ebs or map to the 
     cross-validated absorbance.
 
-    The above procedure is performed over user supplied grids and the hyper-parameter configuration yielding 
-    the lowest error selected.
+    The above procedure is performed over user supplied grids and the hyperparameter configuration yielding 
+    the lowest error is selected.
 
     Args:
     ----------
@@ -28,7 +28,7 @@ class BlockCV:
     c_grid : list of int, optional
         Candidate values for the number of PCA components. Default is [10].
     sigma_grid : list of float, optional
-        Candidate values for the regularization parameter. Default is [0.0001].
+        Candidate values for the regularization/temperature parameter. Default is [0.0001].
     num_folds: int, optional
         Number of blocks used in cross validation. Default is 5.
     mit: int, optional
@@ -47,7 +47,7 @@ class BlockCV:
     c_grid : list of int
         Provided number of PCA components grid.
     sigma_grid :  list of float
-        Provided regularization parameter grid.
+        Provided regularization/temperature parameter grid.
     map_solver :
         Selected solver used to estimate interference and absorbance.
     cv_errs : numpy.ndarray of float

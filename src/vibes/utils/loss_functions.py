@@ -22,7 +22,7 @@ def als_loss(a, tau=0.1):
     """
     Compute the component-wise asymmetrically weighted squared loss values.
 
-     Args:
+    Args:
     ----------
     a : np.ndarray
         The input array for which to compute the loss values.

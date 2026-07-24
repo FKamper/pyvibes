@@ -12,7 +12,7 @@ def vibes_help_fun(args):
     args : tuple
         consists of the following in order:
         y : np.ndarray
-            Input spectrum
+            Input spectrum.
         mu : np.ndarray
             Mean interference spectrum.
         W : np.ndarray

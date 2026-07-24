@@ -12,7 +12,7 @@ def bootstrap_sample(Z):
     Args:
     ----------
     Z : np.ndarray
-        Observed interference examples as rows of a matrix.
+        Input interference examples as rows of a matrix.
     
     Returns
     ----------
@@ -31,13 +31,13 @@ def pca_bootstrap(y, Z, tau, sigma, c, B=100, loss="PB", verbose=False):
     Args:
     ----------
     y : np.ndarray
-        Observed spectrum.
+        Input spectrum.
     Z : np.ndarray
-        Observed interference examples as rows of a matrix.
+        Input interference examples as rows of a matrix.
     tau : float
         Asymmetry parameter.
     sigma : float
-        Temperature / regularization parameter.
+        Regularization/temperature parameter.
     c : int
         Number of PCA components.
     B : int, optional

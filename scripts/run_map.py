@@ -10,7 +10,7 @@ Notes:
 2. The folder containing the data should be a subfolder in repo_root/data and contain the files spectra.parquet and blanks.parquet.
 3. spectra.parquet contains the spectra from which to remove the interference as rows with the index containing identifyers. 
 4. blanks.parquet should contain the interference examples as rows.
-5. MAP is then deployed on the specra contained in the folder under the provided settings.
+5. MAP is then deployed on the spectra contained in the folder under the provided settings.
 6. c = loo instructs the script to estimate the number of components used to model the interference using leave-one-out cross validation. 
    c = bcv means that the number of components are selected using blocked cross validation (bcv).
 7. tau = bcv means that the asymmetry parameter is selected by blocked cross validation, otherwise it is kept fixed at a supplied value.
